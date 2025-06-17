@@ -1,13 +1,25 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
-const Login = ({ handleLogin }) => {
+const Login = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const navigate = useNavigate();
+    const { login } = useAuth();
 
     const handleLoginSubmit = (e) => {
         e.preventDefault();
-        handleLogin(null, email, password);
+        const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
+        const user = storedUsers.find(
+            (u) => u.email === email && u.password === password
+        );
+        if (user) {
+            login(user);
+            navigate("/");
+        } else {
+            alert("Invalid credentials");
+        }
     };
 
     return (

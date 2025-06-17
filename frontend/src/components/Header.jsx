@@ -1,35 +1,40 @@
-import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { useState, useRef } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
-const Header = ({ user, isLoggedIn, handleLogout }) => {
+const Header = () => {
     const [showDropdown, setShowDropdown] = useState(false);
     const dropdownRef = useRef(null);
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { user, isLoggedIn, logout } = useAuth();
 
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (
-                dropdownRef.current &&
-                !dropdownRef.current.contains(event.target)
-            ) {
-                setShowDropdown(false);
-            }
-        };
+    const handleLogout = () => {
+        logout();
+        navigate("/login");
+    };
 
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, []);
+    const isActive = (path) => {
+        return location.pathname === path;
+    };
+
+    const getLinkClass = (path) => {
+        return `mr-4 transition-colors ${
+            isActive(path)
+                ? "text-pink-500 border-b-2 border-pink-500"
+                : "text-white hover:text-pink-500"
+        }`;
+    };
 
     return (
         <header className="bg-gray-800 p-4 flex justify-between items-center">
             <h1 className="text-2xl font-bold text-pink-500">MemeHustle</h1>
             <nav>
-                <Link to="/" className="text-white mr-4">
+                <Link to="/" className={getLinkClass("/")}>
                     MemeHub
                 </Link>
                 {isLoggedIn && (
-                    <Link to="/my-memes" className="text-white mr-4">
+                    <Link to="/my-memes" className={getLinkClass("/my-memes")}>
                         My Memes
                     </Link>
                 )}
@@ -63,10 +68,10 @@ const Header = ({ user, isLoggedIn, handleLogout }) => {
                     </div>
                 ) : (
                     <>
-                        <Link to="/login" className="text-white mr-4">
+                        <Link to="/login" className={getLinkClass("/login")}>
                             Login
                         </Link>
-                        <Link to="/signup" className="text-white">
+                        <Link to="/signup" className={getLinkClass("/signup")}>
                             Signup
                         </Link>
                     </>

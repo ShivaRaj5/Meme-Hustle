@@ -1,30 +1,32 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
-const Signup = ({ handleLogin }) => {
+const Signup = () => {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const navigate = useNavigate();
+    const { login } = useAuth();
 
     const handleSignupSubmit = (e) => {
         e.preventDefault();
-        const storedUsers = JSON.parse(
-            localStorage.getItem("users") || "[]"
-        );
+        const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
         const existingUser = storedUsers.find((u) => u.email === email);
         if (existingUser) {
             alert("User already exists");
         } else {
-            const newUser = { 
-                id: Date.now(), 
-                name, 
-                email, 
+            const newUser = {
+                id: Date.now(),
+                name,
+                email,
                 password,
                 credits: 500, // Add initial credits
             };
             storedUsers.push(newUser);
             localStorage.setItem("users", JSON.stringify(storedUsers));
-            handleLogin(name, email, password);
+            login(newUser); // Use the login function from AuthContext
+            navigate("/");
         }
     };
 
