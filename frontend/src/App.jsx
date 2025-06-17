@@ -58,6 +58,12 @@ function App() {
     const handleBid = (memeId, amount) => {
         if (!isLoggedIn) return;
 
+        // Check if user has enough credits
+        if (user.credits < amount) {
+            alert("You don't have enough credits!");
+            return;
+        }
+
         const currentBids = bids[memeId] || [];
         const highestBid =
             currentBids.length > 0
@@ -81,7 +87,7 @@ function App() {
         const existingBidIndex = currentBids.findIndex(
             (bid) => bid.userId === user.id
         );
-
+        
         let updatedBids;
         if (existingBidIndex !== -1) {
             // Update existing bid
@@ -99,11 +105,26 @@ function App() {
             };
         }
 
+        // Update user's credits
+        const updatedUser = {
+            ...user,
+            credits: user.credits - amount
+        };
+        setUser(updatedUser);
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+
+        // Update users list in localStorage
+        const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
+        const updatedUsers = storedUsers.map(u => 
+            u.id === user.id ? updatedUser : u
+        );
+        localStorage.setItem("users", JSON.stringify(updatedUsers));
+
         setBids(updatedBids);
         localStorage.setItem("bids", JSON.stringify(updatedBids));
 
         // Show bid confirmation
-        alert(`${user.name} bid ${amount} credits!`);
+        alert(`${user.name} bid ${amount} credits! Remaining credits: ${updatedUser.credits}`);
     };
 
     const getHighestBid = (memeId) => {
@@ -616,7 +637,13 @@ function App() {
             if (existingUser) {
                 alert("User already exists");
             } else {
-                const newUser = { id: Date.now(), name, email, password };
+                const newUser = { 
+                    id: Date.now(), 
+                    name, 
+                    email, 
+                    password,
+                    credits: 500 // Add initial credits
+                };
                 storedUsers.push(newUser);
                 localStorage.setItem("users", JSON.stringify(storedUsers));
                 handleLogin(name, email, password);
@@ -751,13 +778,18 @@ function App() {
                             className="relative inline-block"
                             ref={dropdownRef}
                         >
-                            <button
-                                className="text-white flex items-center"
-                                onClick={() => setShowDropdown(!showDropdown)}
-                            >
-                                {user.name}
-                                <span className="ml-1">▼</span>
-                            </button>
+                            <div className="flex items-center">
+                                <span className="text-green-400 mr-4">
+                                    Credits: {user.credits}
+                                </span>
+                                <button
+                                    className="text-white flex items-center"
+                                    onClick={() => setShowDropdown(!showDropdown)}
+                                >
+                                    {user.name}
+                                    <span className="ml-1">▼</span>
+                                </button>
+                            </div>
                             {showDropdown && (
                                 <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded shadow-lg z-10">
                                     <button
