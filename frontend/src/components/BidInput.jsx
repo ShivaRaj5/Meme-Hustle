@@ -1,47 +1,57 @@
 import { useState } from "react";
 
 const BidInput = ({ onBid, memeId }) => {
-    const [localBidAmount, setLocalBidAmount] = useState("");
+    const [bidAmount, setBidAmount] = useState("");
 
-    const handleBid = () => {
-        if (!localBidAmount) {
-            alert("Please enter a bid amount");
-            return;
+    const handleBidSubmit = (e) => {
+        e.preventDefault();
+        const amount = parseInt(bidAmount);
+        if (amount > 0) {
+            onBid(memeId, amount);
+            setBidAmount("");
         }
-        onBid(memeId, Number(localBidAmount));
     };
 
     const handleInputChange = (e) => {
         const value = e.target.value;
-        // Allow empty input
-        if (value === "") {
-            setLocalBidAmount("");
-            return;
-        }
-        // Remove leading zeros and convert to number
-        const numValue = value.replace(/^0+/, "");
-        // Only update if it's a valid number
-        if (!isNaN(numValue)) {
-            setLocalBidAmount(numValue);
+        // Only allow positive numbers
+        if (value === "" || /^[1-9]\d*$/.test(value)) {
+            setBidAmount(value);
         }
     };
 
     return (
-        <div className="flex items-center justify-center space-x-2">
-            <input
-                type="text"
-                value={localBidAmount}
-                onChange={handleInputChange}
-                placeholder="Enter bid amount"
-                className="w-24 bg-gray-700 text-white p-2 rounded"
-            />
-            <button
-                onClick={handleBid}
-                className="bg-green-500 text-white p-2 rounded neon-glow"
-            >
-                Bid Credits
-            </button>
-        </div>
+        <form onSubmit={handleBidSubmit} className="space-y-3">
+            <div className="flex items-center space-x-2">
+                <div className="relative flex-1">
+                    <input
+                        type="text"
+                        value={bidAmount}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 transition-all duration-200"
+                        placeholder="Enter bid amount"
+                        min="1"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+                        credits
+                    </span>
+                </div>
+                <button
+                    type="submit"
+                    disabled={!bidAmount}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 focus:ring-offset-gray-800 ${
+                        bidAmount
+                            ? "bg-pink-500 hover:bg-pink-600 text-white cursor-pointer"
+                            : "bg-gray-600 text-gray-400 cursor-not-allowed"
+                    }`}
+                >
+                    Bid
+                </button>
+            </div>
+            <p className="text-xs text-gray-400">
+                Minimum bid: 1 credit
+            </p>
+        </form>
     );
 };
 

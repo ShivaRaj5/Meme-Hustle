@@ -1,19 +1,20 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import BidInput from "./BidInput";
+import { useAuth } from "../context/AuthContext";
 
 const MyMemes = () => {
-    const [title, setTitle] = useState("");
-    const [imageUrl, setImageUrl] = useState("");
-    const [tags, setTags] = useState([]);
-    const [tagInput, setTagInput] = useState("");
+    const { user } = useAuth();
     const [memes, setMemes] = useState([]);
     const [bids, setBids] = useState({});
     const [votes, setVotes] = useState({});
     const [captions, setCaptions] = useState({});
     const [vibes, setVibes] = useState({});
-    const [user, setUser] = useState(null);
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [showModal, setShowModal] = useState(false);
+    const [title, setTitle] = useState("");
+    const [imageUrl, setImageUrl] = useState("");
+    const [tags, setTags] = useState([]);
+    const [tagInput, setTagInput] = useState("");
 
     useEffect(() => {
         const storedMemes = localStorage.getItem("memes");
@@ -21,23 +22,28 @@ const MyMemes = () => {
         const storedVotes = localStorage.getItem("votes");
         const storedCaptions = localStorage.getItem("captions");
         const storedVibes = localStorage.getItem("vibes");
-        const storedUser = localStorage.getItem("user");
-
         if (storedMemes) setMemes(JSON.parse(storedMemes));
         if (storedBids) setBids(JSON.parse(storedBids));
         if (storedVotes) setVotes(JSON.parse(storedVotes));
         if (storedCaptions) setCaptions(JSON.parse(storedCaptions));
         if (storedVibes) setVibes(JSON.parse(storedVibes));
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
-            setIsLoggedIn(true);
-        }
     }, []);
+
+    const handleAddTag = () => {
+        if (tagInput.trim() && !tags.includes(tagInput.trim())) {
+            setTags([...tags, tagInput.trim()]);
+            setTagInput("");
+        }
+    };
+
+    const handleRemoveTag = (tagToRemove) => {
+        setTags(tags.filter((tag) => tag !== tagToRemove));
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!isLoggedIn) {
-            alert("Please login to create memes");
+        if (!title || !imageUrl) {
+            alert("Please fill in all required fields");
             return;
         }
 
@@ -55,167 +61,53 @@ const MyMemes = () => {
         localStorage.setItem("memes", JSON.stringify(updatedMemes));
 
         // Generate mock caption and vibe
-        const mockCaption = `"${title}" - ${user.name}`;
-        const mockVibe = "🔥 Lit AF";
-        setCaptions({ ...captions, [newMeme.id]: mockCaption });
-        setVibes({ ...vibes, [newMeme.id]: mockVibe });
-        localStorage.setItem(
-            "captions",
-            JSON.stringify({ ...captions, [newMeme.id]: mockCaption })
-        );
-        localStorage.setItem(
-            "vibes",
-            JSON.stringify({ ...vibes, [newMeme.id]: mockVibe })
-        );
+        const mockCaptions = [
+            "When the code finally works",
+            "Debugging be like",
+            "That moment when...",
+            "Me trying to understand the documentation",
+        ];
+        const mockVibes = ["Coding", "Funny", "Relatable", "Tech"];
+
+        const newCaptions = {
+            ...captions,
+            [newMeme.id]: mockCaptions[Math.floor(Math.random() * mockCaptions.length)],
+        };
+        const newVibes = {
+            ...vibes,
+            [newMeme.id]: mockVibes[Math.floor(Math.random() * mockVibes.length)],
+        };
+
+        setCaptions(newCaptions);
+        setVibes(newVibes);
+        localStorage.setItem("captions", JSON.stringify(newCaptions));
+        localStorage.setItem("vibes", JSON.stringify(newVibes));
 
         // Reset form
         setTitle("");
         setImageUrl("");
         setTags([]);
-        setTagInput("");
+        setShowModal(false);
     };
 
-    const handleAddTag = () => {
-        if (tagInput.trim() && !tags.includes(tagInput.trim())) {
-            setTags([...tags, tagInput.trim()]);
-            setTagInput("");
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (e.target.type === 'text' && e.target.placeholder === 'Add a tag') {
+                handleAddTag();
+            }
         }
-    };
-
-    const handleRemoveTag = (tagToRemove) => {
-        setTags(tags.filter((tag) => tag !== tagToRemove));
-    };
-
-    const handleBid = (memeId, amount) => {
-        if (!isLoggedIn) return;
-
-        // Check if user has enough credits
-        if (user.credits < amount) {
-            alert("You don't have enough credits!");
-            return;
-        }
-
-        const currentBids = bids[memeId] || [];
-        const highestBid =
-            currentBids.length > 0
-                ? Math.max(...currentBids.map((bid) => bid.amount))
-                : 0;
-
-        // Only allow bidding if the new bid is higher than the current highest bid
-        if (amount <= highestBid) {
-            alert("Your bid must be higher than the current highest bid!");
-            return;
-        }
-
-        const newBid = {
-            userId: user.id,
-            userName: user.name,
-            amount: amount,
-            timestamp: new Date().toISOString(),
-        };
-
-        // Check if user already has a bid
-        const existingBidIndex = currentBids.findIndex(
-            (bid) => bid.userId === user.id
-        );
-
-        let updatedBids;
-        if (existingBidIndex !== -1) {
-            // Update existing bid
-            const updatedBidsArray = [...currentBids];
-            updatedBidsArray[existingBidIndex] = newBid;
-            updatedBids = {
-                ...bids,
-                [memeId]: updatedBidsArray,
-            };
-        } else {
-            // Add new bid
-            updatedBids = {
-                ...bids,
-                [memeId]: [...currentBids, newBid],
-            };
-        }
-
-        // Update user's credits
-        const updatedUser = {
-            ...user,
-            credits: user.credits - amount,
-        };
-        setUser(updatedUser);
-        localStorage.setItem("user", JSON.stringify(updatedUser));
-
-        // Update users list in localStorage
-        const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-        const updatedUsers = storedUsers.map((u) =>
-            u.id === user.id ? updatedUser : u
-        );
-        localStorage.setItem("users", JSON.stringify(updatedUsers));
-
-        setBids(updatedBids);
-        localStorage.setItem("bids", JSON.stringify(updatedBids));
-
-        // Show bid confirmation
-        alert(
-            `${user.name} bid ${amount} credits! Remaining credits: ${updatedUser.credits}`
-        );
     };
 
     const getHighestBid = (memeId) => {
         const memeBids = bids[memeId] || [];
         if (memeBids.length === 0) return null;
 
-        // Find the highest bid
-        const highestBid = memeBids.reduce(
+        return memeBids.reduce(
             (highest, current) =>
                 current.amount > highest.amount ? current : highest,
             memeBids[0]
         );
-
-        return {
-            amount: highestBid.amount,
-            bidder: highestBid.userName,
-        };
-    };
-
-    const handleVote = (memeId, type) => {
-        if (!isLoggedIn) return;
-
-        const currentVotes = votes[memeId] || { upvotes: [], downvotes: [] };
-        const userId = user.id;
-
-        let newVotes = { ...currentVotes };
-
-        if (type === "up") {
-            // If user has already upvoted, remove the upvote
-            if (currentVotes.upvotes.includes(userId)) {
-                newVotes.upvotes = currentVotes.upvotes.filter(
-                    (id) => id !== userId
-                );
-            } else {
-                // Add upvote and remove from downvotes if exists
-                newVotes.upvotes = [...currentVotes.upvotes, userId];
-                newVotes.downvotes = currentVotes.downvotes.filter(
-                    (id) => id !== userId
-                );
-            }
-        } else {
-            // If user has already downvoted, remove the downvote
-            if (currentVotes.downvotes.includes(userId)) {
-                newVotes.downvotes = currentVotes.downvotes.filter(
-                    (id) => id !== userId
-                );
-            } else {
-                // Add downvote and remove from upvotes if exists
-                newVotes.downvotes = [...currentVotes.downvotes, userId];
-                newVotes.upvotes = currentVotes.upvotes.filter(
-                    (id) => id !== userId
-                );
-            }
-        }
-
-        const updatedVotes = { ...votes, [memeId]: newVotes };
-        setVotes(updatedVotes);
-        localStorage.setItem("votes", JSON.stringify(updatedVotes));
     };
 
     const getVoteCounts = (memeId) => {
@@ -226,178 +118,201 @@ const MyMemes = () => {
         };
     };
 
-    const hasUserVoted = (memeId, type) => {
-        if (!isLoggedIn) return false;
-        const memeVotes = votes[memeId] || { upvotes: [], downvotes: [] };
-        return type === "up"
-            ? memeVotes.upvotes.includes(user.id)
-            : memeVotes.downvotes.includes(user.id);
-    };
-
     const handleDelete = (memeId) => {
         const updatedMemes = memes.filter((meme) => meme.id !== memeId);
         setMemes(updatedMemes);
         localStorage.setItem("memes", JSON.stringify(updatedMemes));
     };
 
-    // Filter memes to show only the user's memes
-    const userMemes = memes.filter((meme) => meme.userId === user?.id);
-
     return (
-        <div className="w-full p-4 bg-gray-900 text-white">
-            <h1 className="text-3xl font-bold mb-4 text-pink-500">My Memes</h1>
-            {isLoggedIn ? (
-                <>
-                    <form onSubmit={handleSubmit} className="mb-8">
-                        <div className="mb-4">
-                            <input
-                                type="text"
-                                placeholder="Meme Title"
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                className="border p-2 mr-2 bg-gray-800 text-white rounded-lg"
-                            />
-                            <input
-                                type="text"
-                                placeholder="Image URL"
-                                value={imageUrl}
-                                onChange={(e) => setImageUrl(e.target.value)}
-                                className="border p-2 mr-2 bg-gray-800 text-white rounded-lg"
-                            />
-                        </div>
-                        <div className="mb-4">
-                            <input
-                                type="text"
-                                placeholder="Add Tags"
-                                value={tagInput}
-                                onChange={(e) => setTagInput(e.target.value)}
-                                className="border p-2 mr-2 bg-gray-800 text-white rounded-lg"
-                            />
-                            <button
-                                type="button"
-                                onClick={handleAddTag}
-                                className="bg-blue-500 text-white p-2 rounded neon-glow"
-                            >
-                                Add Tag
-                            </button>
-                        </div>
-                        <div className="mb-4">
-                            {tags.map((tag) => (
-                                <span
-                                    key={tag}
-                                    className="bg-gray-700 text-white px-2 py-1 rounded mr-2"
-                                >
-                                    {tag}
-                                    <button
-                                        type="button"
-                                        onClick={() => handleRemoveTag(tag)}
-                                        className="ml-2 text-red-500"
-                                    >
-                                        ×
-                                    </button>
-                                </span>
-                            ))}
-                        </div>
-                        <button
-                            type="submit"
-                            className="bg-green-500 text-white p-2 rounded neon-glow"
-                        >
-                            Create Meme
-                        </button>
-                    </form>
+        <div className="w-full min-h-screen bg-gray-900 text-white">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="flex justify-between items-center mb-8">
+                    <h1 className="text-4xl font-bold text-pink-500 animate-fade-in">
+                        My Memes
+                    </h1>
+                    <button
+                        onClick={() => setShowModal(true)}
+                        className="px-6 py-3 bg-pink-500 hover:bg-pink-600 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 focus:ring-offset-gray-800 cursor-pointer"
+                    >
+                        Create Meme
+                    </button>
+                </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {userMemes.map((meme) => (
+                {/* Create Meme Modal */}
+                {showModal && (
+                    <div className="fixed inset-0 bg-black/30 backdrop-blur-lg flex items-center justify-center p-4 z-50 animate-fade-in">
+                        <div className="w-full max-w-md bg-gray-800 rounded-xl shadow-2xl transform transition-all duration-300">
+                            <div className="p-8 space-y-6">
+                                <div className="flex justify-between items-center">
+                                    <h2 className="text-2xl font-bold text-pink-500">
+                                        Create New Meme
+                                    </h2>
+                                    <button
+                                        onClick={() => setShowModal(false)}
+                                        className="text-gray-400 hover:text-white transition-colors cursor-pointer"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                                <form onSubmit={handleSubmit} className="space-y-6">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-gray-300">
+                                            Title
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={title}
+                                            onChange={(e) => setTitle(e.target.value)}
+                                            onKeyPress={handleKeyPress}
+                                            className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 transition-colors duration-200"
+                                            placeholder="Enter meme title"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-gray-300">
+                                            Image URL
+                                        </label>
+                                        <input
+                                            type="url"
+                                            value={imageUrl}
+                                            onChange={(e) => setImageUrl(e.target.value)}
+                                            onKeyPress={handleKeyPress}
+                                            className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 transition-colors duration-200"
+                                            placeholder="Enter image URL"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-gray-300">
+                                            Tags
+                                        </label>
+                                        <div className="flex space-x-2">
+                                            <input
+                                                type="text"
+                                                value={tagInput}
+                                                onChange={(e) => setTagInput(e.target.value)}
+                                                onKeyPress={handleKeyPress}
+                                                className="flex-1 px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 transition-colors duration-200"
+                                                placeholder="Add a tag"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleAddTag}
+                                                className="px-4 py-3 bg-pink-500 hover:bg-pink-600 text-white font-medium rounded-lg transition-colors duration-200 cursor-pointer"
+                                            >
+                                                Add
+                                            </button>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 mt-2">
+                                            {tags.map((tag) => (
+                                                <span
+                                                    key={tag}
+                                                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-700 text-white"
+                                                >
+                                                    {tag}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveTag(tag)}
+                                                        className="ml-2 text-gray-400 hover:text-white cursor-pointer"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        disabled={!title.trim()}
+                                        className={`w-full py-3 px-4 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 focus:ring-offset-gray-800 ${
+                                            title.trim()
+                                                ? 'bg-pink-500 hover:bg-pink-600 cursor-pointer'
+                                                : 'bg-gray-600 cursor-not-allowed'
+                                        }`}
+                                    >
+                                        Create Meme
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Memes Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {memes
+                        .filter((meme) => meme.userId === user?.id)
+                        .map((meme) => (
                             <div
                                 key={meme.id}
-                                className="border p-4 rounded bg-gray-800 glitch-hover"
+                                className="bg-gray-800 rounded-lg overflow-hidden shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-xl"
                             >
-                                <div className="flex justify-between items-center mb-2">
-                                    <h2 className="text-xl font-bold">
-                                        {meme.title}
-                                    </h2>
-                                </div>
-                                <img
-                                    src={meme.imageUrl}
-                                    alt={meme.title}
-                                    className="w-full h-48 object-cover"
-                                />
-                                <p className="mt-2">Tags: {meme.tags.join(", ")}</p>
-                                <p className="mt-2">
-                                    Caption: {captions[meme.id]}
-                                </p>
-                                <p className="mt-2">Vibe: {vibes[meme.id]}</p>
-                                <div className="mt-2">
-                                    {bids[meme.id]?.length > 0 ? (
-                                        <div className="text-sm">
-                                            <p className="font-bold">
-                                                Highest Bid:{" "}
-                                                {getHighestBid(meme.id).amount}
-                                            </p>
-                                            <p className="font-bold">
-                                                Bidder Name:{" "}
-                                                {getHighestBid(meme.id).bidder}
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm text-gray-400">
-                                            No bids yet
+                                <div className="p-4">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <h2 className="text-xl font-bold text-pink-500">
+                                            {meme.title}
+                                        </h2>
+                                    </div>
+                                    <div className="relative aspect-video mb-4">
+                                        <img
+                                            src={meme.imageUrl}
+                                            alt={meme.title}
+                                            className="w-full h-full object-cover rounded-lg"
+                                        />
+                                    </div>
+                                    <div className="space-y-3">
+                                        <p className="text-sm text-gray-300">
+                                            Tags: {meme.tags.join(", ")}
                                         </p>
-                                    )}
-                                </div>
-                                <div className="mt-2">
+                                        <p className="text-sm italic text-gray-400">
+                                            {captions[meme.id]}
+                                        </p>
+                                        <p className="text-sm font-medium text-pink-500">
+                                            {vibes[meme.id]}
+                                        </p>
+                                    </div>
+                                    <div className="mt-4 space-y-3">
+                                        <div className="text-sm">
+                                            {bids[meme.id]?.length > 0 ? (
+                                                <div className="bg-gray-700 p-2 rounded">
+                                                    <p className="font-medium">
+                                                        Highest Bid:{" "}
+                                                        <span className="text-green-400">
+                                                            {getHighestBid(meme.id).amount}
+                                                        </span>
+                                                    </p>
+                                                    <p className="text-gray-300">
+                                                        by {getHighestBid(meme.id).userName}
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <p className="text-gray-400 italic">
+                                                    No bids yet
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center space-x-4">
+                                            <span className="text-sm text-gray-300">
+                                                ↑ {getVoteCounts(meme.id).upvotes}
+                                            </span>
+                                            <span className="text-sm text-gray-300">
+                                                ↓ {getVoteCounts(meme.id).downvotes}
+                                            </span>
+                                        </div>
+                                    </div>
                                     <button
-                                        onClick={() => handleVote(meme.id, "up")}
-                                        className={`bg-green-500 text-white p-2 rounded mr-2 neon-glow ${
-                                            hasUserVoted(meme.id, "up")
-                                                ? "opacity-50 cursor-not-allowed"
-                                                : ""
-                                        }`}
-                                        disabled={hasUserVoted(meme.id, "up")}
+                                        onClick={() => handleDelete(meme.id)}
+                                        className="mt-4 w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 transition-colors duration-200 cursor-pointer"
                                     >
-                                        Upvote
+                                        Delete Meme
                                     </button>
-                                    <span className="mr-4">
-                                        ↑ {getVoteCounts(meme.id).upvotes}
-                                    </span>
-                                    <button
-                                        onClick={() => handleVote(meme.id, "down")}
-                                        className={`bg-green-500 text-white p-2 rounded mr-2 neon-glow ${
-                                            hasUserVoted(meme.id, "down")
-                                                ? "opacity-50 cursor-not-allowed"
-                                                : ""
-                                        }`}
-                                        disabled={hasUserVoted(meme.id, "down")}
-                                    >
-                                        Downvote
-                                    </button>
-                                    <span>
-                                        ↓ {getVoteCounts(meme.id).downvotes}
-                                    </span>
                                 </div>
-                                <button
-                                    onClick={() => handleDelete(meme.id)}
-                                    className="bg-red-500 text-white p-2 rounded mt-2 neon-glow"
-                                >
-                                    Delete Meme
-                                </button>
                             </div>
                         ))}
-                    </div>
-                </>
-            ) : (
-                <div className="text-center">
-                    <p className="text-yellow-500 mb-4">
-                        Please login to view and create memes
-                    </p>
-                    <Link
-                        to="/login"
-                        className="bg-green-500 text-white p-2 rounded neon-glow"
-                    >
-                        Login
-                    </Link>
                 </div>
-            )}
+            </div>
         </div>
     );
 };
