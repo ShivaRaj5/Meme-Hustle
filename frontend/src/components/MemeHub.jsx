@@ -239,148 +239,59 @@ const MemeHub = () => {
                 <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-8 text-pink-500 animate-fade-in">
                     <span className="text-shadow-neon">{typingText}</span>
                 </h1>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {memes.map((meme) => (
-                        <div
-                            key={meme.id}
-                            className="bg-gray-800 rounded-lg overflow-hidden shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                {memes.length === 0 ? (
+                    <div className="text-center py-12 bg-gray-800 rounded-lg">
+                        <h2 className="text-2xl font-bold text-pink-500 mb-4">No Memes Yet!</h2>
+                        <p className="text-gray-300 mb-6">Be the first to create and share your memes with the community.</p>
+                        <Link
+                            to="/login"
+                            className="inline-block px-6 py-3 bg-pink-500 hover:bg-pink-600 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 focus:ring-offset-gray-800 cursor-pointer"
                         >
-                            <div className="p-4">
-                                <div className="flex justify-between items-center mb-3">
-                                    <h2 className="text-xl font-bold text-pink-500">
-                                        {meme.title}
-                                    </h2>
-                                    <span className="text-sm text-gray-400">
-                                        Posted by {meme.userName || "Anonymous"}
-                                    </span>
-                                </div>
-                                <div className="relative aspect-video mb-4">
-                                    <img
-                                        src={meme.imageUrl}
-                                        alt={meme.title}
-                                        onError={handleImageError}
-                                        className="w-full h-full object-cover rounded-lg"
-                                    />
-                                </div>
-                                <div className="space-y-3">
-                                    <p className="text-sm text-gray-300">
-                                        Tags: {meme.tags.join(", ")}
-                                    </p>
-                                    <p className="text-sm italic text-gray-400">
-                                        {captions[meme.id]}
-                                    </p>
-                                    <p className="text-sm font-medium text-pink-500">
-                                        {vibes[meme.id]}
-                                    </p>
-                                </div>
-                                <div className="mt-4 space-y-3">
-                                    {isLoggedIn ? (
-                                        <BidInput
-                                            onBid={handleBid}
-                                            memeId={meme.id}
-                                            userCredits={user.credits}
-                                        />
-                                    ) : (
-                                        <div className="text-yellow-500 text-sm">
-                                            Please{" "}
-                                            <Link
-                                                to="/login"
-                                                className="text-blue-500 underline hover:text-blue-400 transition-colors"
-                                            >
-                                                login
-                                            </Link>{" "}
-                                            to bid on memes
-                                        </div>
-                                    )}
-                                    <div className="text-sm">
-                                        {bids[meme.id]?.length > 0 ? (
-                                            <div className="bg-gray-700 p-2 rounded">
-                                                <p className="font-medium">
-                                                    Highest Bid:{" "}
-                                                    <span className="text-green-400">
-                                                        {
-                                                            getHighestBid(
-                                                                meme.id
-                                                            ).amount
-                                                        }
-                                                    </span>
-                                                </p>
-                                                <p className="text-gray-300">
-                                                    by{" "}
-                                                    {
-                                                        getHighestBid(meme.id)
-                                                            .bidder
-                                                    }
-                                                </p>
-                                            </div>
-                                        ) : (
-                                            <p className="text-gray-400 italic">
-                                                No bids yet
-                                            </p>
-                                        )}
+                            Create Your First Meme
+                        </Link>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {memes.map((meme) => (
+                            <div
+                                key={meme.id}
+                                className="bg-gray-800 rounded-lg overflow-hidden shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                            >
+                                <div className="p-4">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <h2 className="text-xl font-bold text-pink-500">
+                                            {meme.title}
+                                        </h2>
+                                        <span className="text-sm text-gray-400">
+                                            Posted by {meme.userName || "Anonymous"}
+                                        </span>
                                     </div>
-                                    <div className="flex items-center space-x-4">
+                                    <div className="relative aspect-video mb-4">
+                                        <img
+                                            src={meme.imageUrl}
+                                            alt={meme.title}
+                                            onError={handleImageError}
+                                            className="w-full h-full object-cover rounded-lg"
+                                        />
+                                    </div>
+                                    <div className="space-y-3">
+                                        <p className="text-sm text-gray-300">
+                                            Tags: {meme.tags.join(", ")}
+                                        </p>
+                                        <p className="text-sm italic text-gray-400">
+                                            {captions[meme.id]}
+                                        </p>
+                                        <p className="text-sm font-medium text-pink-500">
+                                            {vibes[meme.id]}
+                                        </p>
+                                    </div>
+                                    <div className="mt-4 space-y-3">
                                         {isLoggedIn ? (
-                                            <>
-                                                <button
-                                                    onClick={() =>
-                                                        handleVote(
-                                                            meme.id,
-                                                            "up"
-                                                        )
-                                                    }
-                                                    className={`flex items-center space-x-1 px-3 py-1 rounded-full text-sm transition-all duration-200 ${
-                                                        hasUserVoted(
-                                                            meme.id,
-                                                            "up"
-                                                        )
-                                                            ? "bg-green-500/50 cursor-not-allowed"
-                                                            : "bg-green-500 hover:bg-green-600"
-                                                    }`}
-                                                    disabled={hasUserVoted(
-                                                        meme.id,
-                                                        "up"
-                                                    )}
-                                                >
-                                                    <span>↑</span>
-                                                    <span>
-                                                        {
-                                                            getVoteCounts(
-                                                                meme.id
-                                                            ).upvotes
-                                                        }
-                                                    </span>
-                                                </button>
-                                                <button
-                                                    onClick={() =>
-                                                        handleVote(
-                                                            meme.id,
-                                                            "down"
-                                                        )
-                                                    }
-                                                    className={`flex items-center space-x-1 px-3 py-1 rounded-full text-sm transition-all duration-200 ${
-                                                        hasUserVoted(
-                                                            meme.id,
-                                                            "down"
-                                                        )
-                                                            ? "bg-red-500/50 cursor-not-allowed"
-                                                            : "bg-red-500 hover:bg-red-600"
-                                                    }`}
-                                                    disabled={hasUserVoted(
-                                                        meme.id,
-                                                        "down"
-                                                    )}
-                                                >
-                                                    <span>↓</span>
-                                                    <span>
-                                                        {
-                                                            getVoteCounts(
-                                                                meme.id
-                                                            ).downvotes
-                                                        }
-                                                    </span>
-                                                </button>
-                                            </>
+                                            <BidInput
+                                                onBid={handleBid}
+                                                memeId={meme.id}
+                                                userCredits={user.credits}
+                                            />
                                         ) : (
                                             <div className="text-yellow-500 text-sm">
                                                 Please{" "}
@@ -390,23 +301,125 @@ const MemeHub = () => {
                                                 >
                                                     login
                                                 </Link>{" "}
-                                                to vote
+                                                to bid on memes
                                             </div>
                                         )}
+                                        <div className="text-sm">
+                                            {bids[meme.id]?.length > 0 ? (
+                                                <div className="bg-gray-700 p-2 rounded">
+                                                    <p className="font-medium">
+                                                        Highest Bid:{" "}
+                                                        <span className="text-green-400">
+                                                            {
+                                                                getHighestBid(
+                                                                    meme.id
+                                                                ).amount
+                                                            }
+                                                        </span>
+                                                    </p>
+                                                    <p className="text-gray-300">
+                                                        by{" "}
+                                                        {
+                                                            getHighestBid(meme.id)
+                                                                .bidder
+                                                        }
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <p className="text-gray-400 italic">
+                                                    No bids yet
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center space-x-4">
+                                            {isLoggedIn ? (
+                                                <>
+                                                    <button
+                                                        onClick={() =>
+                                                            handleVote(
+                                                                meme.id,
+                                                                "up"
+                                                            )
+                                                        }
+                                                        className={`flex items-center space-x-1 px-3 py-1 rounded-full text-sm transition-all duration-200 ${
+                                                            hasUserVoted(
+                                                                meme.id,
+                                                                "up"
+                                                            )
+                                                                ? "bg-green-500/50 cursor-not-allowed"
+                                                                : "bg-green-500 hover:bg-green-600"
+                                                        }`}
+                                                        disabled={hasUserVoted(
+                                                            meme.id,
+                                                            "up"
+                                                        )}
+                                                    >
+                                                        <span>↑</span>
+                                                        <span>
+                                                            {
+                                                                getVoteCounts(
+                                                                    meme.id
+                                                                ).upvotes
+                                                            }
+                                                        </span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() =>
+                                                            handleVote(
+                                                                meme.id,
+                                                                "down"
+                                                            )
+                                                        }
+                                                        className={`flex items-center space-x-1 px-3 py-1 rounded-full text-sm transition-all duration-200 ${
+                                                            hasUserVoted(
+                                                                meme.id,
+                                                                "down"
+                                                            )
+                                                                ? "bg-red-500/50 cursor-not-allowed"
+                                                                : "bg-red-500 hover:bg-red-600"
+                                                        }`}
+                                                        disabled={hasUserVoted(
+                                                            meme.id,
+                                                            "down"
+                                                        )}
+                                                    >
+                                                        <span>↓</span>
+                                                        <span>
+                                                            {
+                                                                getVoteCounts(
+                                                                    meme.id
+                                                                ).downvotes
+                                                            }
+                                                        </span>
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <div className="text-yellow-500 text-sm">
+                                                    Please{" "}
+                                                    <Link
+                                                        to="/login"
+                                                        className="text-blue-500 underline hover:text-blue-400 transition-colors"
+                                                    >
+                                                        login
+                                                    </Link>{" "}
+                                                    to vote
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
+                                    {isLoggedIn && meme.userId === user?.id && (
+                                        <button
+                                            onClick={() => handleDelete(meme.id)}
+                                            className="mt-4 w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 transition-colors duration-200"
+                                        >
+                                            Delete Meme
+                                        </button>
+                                    )}
                                 </div>
-                                {isLoggedIn && meme.userId === user?.id && (
-                                    <button
-                                        onClick={() => handleDelete(meme.id)}
-                                        className="mt-4 w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 transition-colors duration-200"
-                                    >
-                                        Delete Meme
-                                    </button>
-                                )}
                             </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
