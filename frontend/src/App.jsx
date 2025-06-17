@@ -1,26 +1,33 @@
-import { Route, Routes } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import "./App.css";
-
-// Import components
-import Header from "./components/Header";
-import MemeHub from "./components/MemeHub";
-import MyMemes from "./components/MyMemes";
+import { AuthProvider } from "./context/AuthContext";
 import Login from "./components/Login";
 import Signup from "./components/Signup";
-import { AuthProvider } from "./context/AuthContext";
+import MemeHub from "./components/MemeHub";
+import MyMemes from "./components/MyMemes";
+import { useAuth } from "./context/AuthContext";
+import Header from "./components/Header";
 
-function App() {
+const App = () => {
     return (
-        <AuthProvider>
-            <Header />
-            <Routes>
-                <Route path="/" element={<MemeHub />} />
-                <Route path="/my-memes" element={<MyMemes />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
-            </Routes>
-        </AuthProvider>
+      
+            <AuthProvider>
+                <div className="min-h-screen bg-gray-900">
+                    <div className="fixed top-0 left-0 right-0 z-50">
+                        <Header />
+                    </div>
+                    <main className="pt-16">
+                        <Routes>
+                            <Route path="/" element={<MemeHub />} />
+                            <Route path="/my-memes" element={<MyMemes />} />
+                            <Route path="/login" element={<Login />} />
+                            <Route path="/signup" element={<Signup />} />
+                        </Routes>
+                    </main>
+                </div>
+            </AuthProvider>
+    
     );
-}
+};
 
 export default App;
