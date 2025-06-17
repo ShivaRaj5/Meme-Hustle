@@ -1,16 +1,18 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import BidInput from "./BidInput";
-import noMemeImage from '../assets/nomemeimage.jpeg'
+import noMemeImage from "../assets/nomemeimage.jpeg";
+import { toast } from "react-toastify";
+import { useAuth } from "../context/AuthContext";
 
 const MemeHub = () => {
+    const { user, login } = useAuth();
     const [memes, setMemes] = useState([]);
     const [bids, setBids] = useState({});
     const [votes, setVotes] = useState({});
     const [captions, setCaptions] = useState({});
     const [vibes, setVibes] = useState({});
     const [typingText, setTypingText] = useState("");
-    const [user, setUser] = useState(null);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
 
     useEffect(() => {
@@ -19,14 +21,12 @@ const MemeHub = () => {
         const storedVotes = localStorage.getItem("votes");
         const storedCaptions = localStorage.getItem("captions");
         const storedVibes = localStorage.getItem("vibes");
-        const storedUser = localStorage.getItem("user");
         if (storedMemes) setMemes(JSON.parse(storedMemes));
         if (storedBids) setBids(JSON.parse(storedBids));
         if (storedVotes) setVotes(JSON.parse(storedVotes));
         if (storedCaptions) setCaptions(JSON.parse(storedCaptions));
         if (storedVibes) setVibes(JSON.parse(storedVibes));
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
+        if (user) {
             setIsLoggedIn(true);
         }
 
@@ -41,14 +41,23 @@ const MemeHub = () => {
             }
         };
         typeWriter();
-    }, []);
+    }, [user]);
 
     const handleBid = (memeId, amount) => {
         if (!isLoggedIn) return;
 
         // Check if user has enough credits
         if (user.credits < amount) {
-            alert("You don't have enough credits!");
+            toast.error("You don't have enough credits!", {
+                position: "top-right",
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                progress: undefined,
+                theme: "dark",
+            });
             return;
         }
 
@@ -60,7 +69,19 @@ const MemeHub = () => {
 
         // Only allow bidding if the new bid is higher than the current highest bid
         if (amount <= highestBid) {
-            alert("Your bid must be higher than the current highest bid!");
+            toast.error(
+                "Your bid must be higher than the current highest bid!",
+                {
+                    position: "top-right",
+                    autoClose: 3000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    pauseOnHover: true,
+                    draggable: true,
+                    progress: undefined,
+                    theme: "dark",
+                }
+            );
             return;
         }
 
@@ -98,7 +119,7 @@ const MemeHub = () => {
             ...user,
             credits: user.credits - amount,
         };
-        setUser(updatedUser);
+        login(updatedUser); // Update user in AuthContext
         localStorage.setItem("user", JSON.stringify(updatedUser));
 
         // Update users list in localStorage
@@ -112,8 +133,18 @@ const MemeHub = () => {
         localStorage.setItem("bids", JSON.stringify(updatedBids));
 
         // Show bid confirmation
-        alert(
-            `${user.name} bid ${amount} credits! Remaining credits: ${updatedUser.credits}`
+        toast.success(
+            `${user.name} bid ${amount} credits! Remaining credits: ${updatedUser.credits}`,
+            {
+                position: "top-right",
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                progress: undefined,
+                theme: "dark",
+            }
         );
     };
 
@@ -244,7 +275,11 @@ const MemeHub = () => {
                                 </div>
                                 <div className="mt-4 space-y-3">
                                     {isLoggedIn ? (
-                                        <BidInput onBid={handleBid} memeId={meme.id} />
+                                        <BidInput
+                                            onBid={handleBid}
+                                            memeId={meme.id}
+                                            userCredits={user.credits}
+                                        />
                                     ) : (
                                         <div className="text-yellow-500 text-sm">
                                             Please{" "}
@@ -263,11 +298,19 @@ const MemeHub = () => {
                                                 <p className="font-medium">
                                                     Highest Bid:{" "}
                                                     <span className="text-green-400">
-                                                        {getHighestBid(meme.id).amount}
+                                                        {
+                                                            getHighestBid(
+                                                                meme.id
+                                                            ).amount
+                                                        }
                                                     </span>
                                                 </p>
                                                 <p className="text-gray-300">
-                                                    by {getHighestBid(meme.id).bidder}
+                                                    by{" "}
+                                                    {
+                                                        getHighestBid(meme.id)
+                                                            .bidder
+                                                    }
                                                 </p>
                                             </div>
                                         ) : (
@@ -280,28 +323,62 @@ const MemeHub = () => {
                                         {isLoggedIn ? (
                                             <>
                                                 <button
-                                                    onClick={() => handleVote(meme.id, "up")}
+                                                    onClick={() =>
+                                                        handleVote(
+                                                            meme.id,
+                                                            "up"
+                                                        )
+                                                    }
                                                     className={`flex items-center space-x-1 px-3 py-1 rounded-full text-sm transition-all duration-200 ${
-                                                        hasUserVoted(meme.id, "up")
+                                                        hasUserVoted(
+                                                            meme.id,
+                                                            "up"
+                                                        )
                                                             ? "bg-green-500/50 cursor-not-allowed"
                                                             : "bg-green-500 hover:bg-green-600"
                                                     }`}
-                                                    disabled={hasUserVoted(meme.id, "up")}
+                                                    disabled={hasUserVoted(
+                                                        meme.id,
+                                                        "up"
+                                                    )}
                                                 >
                                                     <span>↑</span>
-                                                    <span>{getVoteCounts(meme.id).upvotes}</span>
+                                                    <span>
+                                                        {
+                                                            getVoteCounts(
+                                                                meme.id
+                                                            ).upvotes
+                                                        }
+                                                    </span>
                                                 </button>
                                                 <button
-                                                    onClick={() => handleVote(meme.id, "down")}
+                                                    onClick={() =>
+                                                        handleVote(
+                                                            meme.id,
+                                                            "down"
+                                                        )
+                                                    }
                                                     className={`flex items-center space-x-1 px-3 py-1 rounded-full text-sm transition-all duration-200 ${
-                                                        hasUserVoted(meme.id, "down")
+                                                        hasUserVoted(
+                                                            meme.id,
+                                                            "down"
+                                                        )
                                                             ? "bg-red-500/50 cursor-not-allowed"
                                                             : "bg-red-500 hover:bg-red-600"
                                                     }`}
-                                                    disabled={hasUserVoted(meme.id, "down")}
+                                                    disabled={hasUserVoted(
+                                                        meme.id,
+                                                        "down"
+                                                    )}
                                                 >
                                                     <span>↓</span>
-                                                    <span>{getVoteCounts(meme.id).downvotes}</span>
+                                                    <span>
+                                                        {
+                                                            getVoteCounts(
+                                                                meme.id
+                                                            ).downvotes
+                                                        }
+                                                    </span>
                                                 </button>
                                             </>
                                         ) : (
@@ -335,4 +412,4 @@ const MemeHub = () => {
     );
 };
 
-export default MemeHub; 
+export default MemeHub;

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { toast } from "react-toastify";
 
 const Signup = () => {
     const [name, setName] = useState("");
@@ -14,7 +15,16 @@ const Signup = () => {
         e.preventDefault();
         const users = JSON.parse(localStorage.getItem("users") || "[]");
         if (users.some(u => u.email === email)) {
-            alert("Email already exists");
+            toast.error("Email already exists", {
+                position: "top-right",
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                progress: undefined,
+                theme: "dark",
+            });
             return;
         }
         const newUser = {
@@ -34,6 +44,16 @@ const Signup = () => {
             credits: newUser.credits
         };
         login(userData);
+        toast.success("Account created successfully!", {
+            position: "top-right",
+            autoClose: 3000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            theme: "dark",
+        });
         navigate("/");
     };
 
