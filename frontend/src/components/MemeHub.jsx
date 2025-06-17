@@ -251,7 +251,7 @@ const MemeHub = () => {
                                         {meme.title}
                                     </h2>
                                     <span className="text-sm text-gray-400">
-                                        Posted by {meme.userName}
+                                        Posted by {meme.userName || "Anonymous"}
                                     </span>
                                 </div>
                                 <div className="relative aspect-video mb-4">

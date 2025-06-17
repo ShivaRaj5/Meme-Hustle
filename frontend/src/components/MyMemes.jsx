@@ -51,6 +51,7 @@ const MyMemes = () => {
             imageUrl: imageUrl.trim() || noMemeImage,
             tags,
             userId: user.id,
+            userName: user.name,
             createdAt: new Date().toISOString(),
         };
 
