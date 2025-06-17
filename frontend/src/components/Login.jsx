@@ -23,37 +23,62 @@ const Login = () => {
     };
 
     return (
-        <div className="container mx-auto p-4 bg-gray-900 text-white">
-            <h1 className="text-3xl font-bold mb-4 text-pink-500">Login</h1>
-            <form onSubmit={handleLoginSubmit} className="mb-4">
-                <input
-                    type="email"
-                    placeholder="Email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="border p-2 mr-2 bg-gray-800 text-white rounded-lg"
-                />
-                <input
-                    type="password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="border p-2 mr-2 bg-gray-800 text-white rounded-lg"
-                />
-                <button
-                    type="submit"
-                    className="bg-green-500 text-white p-2 mt-4 rounded neon-glow"
-                >
-                    Login
-                </button>
-            </form>
-            <p className="mt-2">
-                Don't have an account?{" "}
-                <Link to="/signup" className="text-blue-500">
-                    Create one
-                </Link>
-                .
-            </p>
+        <div className="w-full min-h-screen bg-gray-900 text-white flex items-center justify-center">
+            <div className="w-full max-w-md p-8 space-y-8 bg-gray-800 rounded-xl shadow-2xl transform transition-all duration-300 hover:shadow-pink-500/20">
+                <div className="text-center">
+                    <h1 className="text-4xl font-bold text-pink-500 mb-2 animate-fade-in">
+                        Welcome Back
+                    </h1>
+                    <p className="text-gray-400">Sign in to your account</p>
+                </div>
+                <form onSubmit={handleLoginSubmit} className="space-y-6">
+                    <div className="space-y-2">
+                        <label htmlFor="email" className="text-sm font-medium text-gray-300">
+                            Email
+                        </label>
+                        <input
+                            id="email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 transition-colors duration-200"
+                            placeholder="Enter your email"
+                            required
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label htmlFor="password" className="text-sm font-medium text-gray-300">
+                            Password
+                        </label>
+                        <input
+                            id="password"
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 transition-colors duration-200"
+                            placeholder="Enter your password"
+                            required
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        className="w-full py-3 px-4 bg-pink-500 hover:bg-pink-600 text-white font-medium rounded-lg transition-colors duration-200 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+                    >
+                        Sign In
+                    </button>
+                </form>
+                <div className="text-center">
+                    <p className="text-gray-400">
+                        Don't have an account?{" "}
+                        <Link
+                            to="/signup"
+                            className="text-pink-500 hover:text-pink-400 font-medium transition-colors duration-200"
+                        >
+                            Create one
+                        </Link>
+                    </p>
+                </div>
+            </div>
         </div>
     );
 };

@@ -244,7 +244,7 @@ const MyMemes = () => {
     const userMemes = memes.filter((meme) => meme.userId === user?.id);
 
     return (
-        <div className="container mx-auto p-4 bg-gray-900 text-white">
+        <div className="w-full p-4 bg-gray-900 text-white">
             <h1 className="text-3xl font-bold mb-4 text-pink-500">My Memes</h1>
             {isLoggedIn ? (
                 <>
