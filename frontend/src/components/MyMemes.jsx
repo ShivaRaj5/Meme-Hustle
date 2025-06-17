@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import BidInput from "./BidInput";
 import { useAuth } from "../context/AuthContext";
+import noMemeImage from '../assets/nomemeimage.jpeg'
 
 const MyMemes = () => {
     const { user } = useAuth();
@@ -122,6 +123,11 @@ const MyMemes = () => {
         const updatedMemes = memes.filter((meme) => meme.id !== memeId);
         setMemes(updatedMemes);
         localStorage.setItem("memes", JSON.stringify(updatedMemes));
+    };
+
+    const handleImageError = (e) => {
+        e.target.onerror = null; // Prevent infinite loop
+        e.target.src = noMemeImage;
     };
 
     return (
@@ -259,6 +265,7 @@ const MyMemes = () => {
                                         <img
                                             src={meme.imageUrl}
                                             alt={meme.title}
+                                            onError={handleImageError}
                                             className="w-full h-full object-cover rounded-lg"
                                         />
                                     </div>

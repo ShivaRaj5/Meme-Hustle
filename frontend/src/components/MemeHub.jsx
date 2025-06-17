@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import BidInput from "./BidInput";
+import noMemeImage from '../assets/nomemeimage.jpeg'
 
 const MemeHub = () => {
     const [memes, setMemes] = useState([]);
@@ -196,6 +197,11 @@ const MemeHub = () => {
         localStorage.setItem("memes", JSON.stringify(updatedMemes));
     };
 
+    const handleImageError = (e) => {
+        e.target.onerror = null; // Prevent infinite loop
+        e.target.src = noMemeImage;
+    };
+
     return (
         <div className="w-full min-h-screen bg-gray-900 text-white">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -221,6 +227,7 @@ const MemeHub = () => {
                                     <img
                                         src={meme.imageUrl}
                                         alt={meme.title}
+                                        onError={handleImageError}
                                         className="w-full h-full object-cover rounded-lg"
                                     />
                                 </div>
