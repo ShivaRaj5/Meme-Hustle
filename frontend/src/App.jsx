@@ -242,19 +242,38 @@ function App() {
     };
 
     const BidInput = ({ onBid, memeId }) => {
-        const [localBidAmount, setLocalBidAmount] = useState(100);
+        const [localBidAmount, setLocalBidAmount] = useState("");
 
         const handleBid = () => {
-            onBid(memeId, localBidAmount);
+            if (!localBidAmount) {
+                alert("Please enter a bid amount");
+                return;
+            }
+            onBid(memeId, Number(localBidAmount));
+        };
+
+        const handleInputChange = (e) => {
+            const value = e.target.value;
+            // Allow empty input
+            if (value === "") {
+                setLocalBidAmount("");
+                return;
+            }
+            // Remove leading zeros and convert to number
+            const numValue = value.replace(/^0+/, "");
+            // Only update if it's a valid number
+            if (!isNaN(numValue)) {
+                setLocalBidAmount(numValue);
+            }
         };
 
         return (
             <div className="flex items-center justify-center space-x-2">
                 <input
-                    type="number"
+                    type="text"
                     value={localBidAmount}
-                    onChange={(e) => setLocalBidAmount(Number(e.target.value))}
-                    min="1"
+                    onChange={handleInputChange}
+                    placeholder="Enter bid amount"
                     className="w-24 bg-gray-700 text-white p-2 rounded"
                 />
                 <button
