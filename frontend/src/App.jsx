@@ -1,20 +1,16 @@
-import { useState, useEffect, useRef } from "react";
-import {
-    BrowserRouter as Router,
-    Route,
-    Link,
-    Navigate,
-    Routes,
-    useNavigate,
-} from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Route, Routes, useNavigate } from "react-router-dom";
 import "./App.css";
+
+// Import components
+import Header from "./components/Header";
+import MemeHub from "./components/MemeHub";
+import MyMemes from "./components/MyMemes";
+import Login from "./components/Login";
+import Signup from "./components/Signup";
 
 function App() {
     const [memes, setMemes] = useState([]);
-    const [title, setTitle] = useState("");
-    const [imageUrl, setImageUrl] = useState("");
-    const [tags, setTags] = useState([]);
-    const [tagInput, setTagInput] = useState("");
     const [bids, setBids] = useState({});
     const [votes, setVotes] = useState({});
     const [captions, setCaptions] = useState({});
@@ -23,7 +19,6 @@ function App() {
     const [user, setUser] = useState(null);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const navigate = useNavigate();
-    const [bidAmount, setBidAmount] = useState(100);
 
     useEffect(() => {
         const storedMemes = localStorage.getItem("memes");
@@ -87,7 +82,7 @@ function App() {
         const existingBidIndex = currentBids.findIndex(
             (bid) => bid.userId === user.id
         );
-        
+
         let updatedBids;
         if (existingBidIndex !== -1) {
             // Update existing bid
@@ -108,14 +103,14 @@ function App() {
         // Update user's credits
         const updatedUser = {
             ...user,
-            credits: user.credits - amount
+            credits: user.credits - amount,
         };
         setUser(updatedUser);
         localStorage.setItem("user", JSON.stringify(updatedUser));
 
         // Update users list in localStorage
         const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-        const updatedUsers = storedUsers.map(u => 
+        const updatedUsers = storedUsers.map((u) =>
             u.id === user.id ? updatedUser : u
         );
         localStorage.setItem("users", JSON.stringify(updatedUsers));
@@ -124,7 +119,9 @@ function App() {
         localStorage.setItem("bids", JSON.stringify(updatedBids));
 
         // Show bid confirmation
-        alert(`${user.name} bid ${amount} credits! Remaining credits: ${updatedUser.credits}`);
+        alert(
+            `${user.name} bid ${amount} credits! Remaining credits: ${updatedUser.credits}`
+        );
     };
 
     const getHighestBid = (memeId) => {
@@ -201,25 +198,13 @@ function App() {
             : memeVotes.downvotes.includes(user.id);
     };
 
-    const handleTagInputKeyDown = (e) => {
-        if (e.key === "Enter" && tagInput.trim()) {
-            e.preventDefault();
-            setTags([...tags, tagInput.trim()]);
-            setTagInput("");
-        }
-    };
-
-    const removeTag = (index) => {
-        setTags(tags.filter((_, i) => i !== index));
-    };
-
     const handleDelete = (memeId) => {
         const updatedMemes = memes.filter((meme) => meme.id !== memeId);
         setMemes(updatedMemes);
         localStorage.setItem("memes", JSON.stringify(updatedMemes));
     };
 
-    const handleLogin = (name, email, password) => {
+    const handleLogin = (email, password) => {
         const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
         const user = storedUsers.find(
             (u) => u.email === email && u.password === password
@@ -241,611 +226,64 @@ function App() {
         navigate("/login");
     };
 
-    const BidInput = ({ onBid, memeId }) => {
-        const [localBidAmount, setLocalBidAmount] = useState("");
-
-        const handleBid = () => {
-            if (!localBidAmount) {
-                alert("Please enter a bid amount");
-                return;
-            }
-            onBid(memeId, Number(localBidAmount));
-        };
-
-        const handleInputChange = (e) => {
-            const value = e.target.value;
-            // Allow empty input
-            if (value === "") {
-                setLocalBidAmount("");
-                return;
-            }
-            // Remove leading zeros and convert to number
-            const numValue = value.replace(/^0+/, "");
-            // Only update if it's a valid number
-            if (!isNaN(numValue)) {
-                setLocalBidAmount(numValue);
-            }
-        };
-
-        return (
-            <div className="flex items-center justify-center space-x-2">
-                <input
-                    type="text"
-                    value={localBidAmount}
-                    onChange={handleInputChange}
-                    placeholder="Enter bid amount"
-                    className="w-24 bg-gray-700 text-white p-2 rounded"
-                />
-                <button
-                    onClick={handleBid}
-                    className="bg-green-500 text-white p-2 rounded neon-glow"
-                >
-                    Bid Credits
-                </button>
-            </div>
-        );
-    };
-
-    const MemeHub = () => (
-        <div className="container mx-auto p-4 bg-gray-900 text-white">
-            <h1 className="text-3xl font-bold mb-4 text-pink-500">
-                <span className="text-shadow-neon">{typingText}</span>
-            </h1>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {memes.map((meme) => (
-                    <div
-                        key={meme.id}
-                        className="border p-4 rounded bg-gray-800 glitch-hover"
-                    >
-                        <div className="flex justify-between items-center mb-2">
-                            <h2 className="text-xl font-bold">{meme.title}</h2>
-                            <span className="text-sm text-gray-400">
-                                Posted by {meme.postedBy}
-                            </span>
-                        </div>
-                        <img
-                            src={meme.imageUrl}
-                            alt={meme.title}
-                            className="w-full h-48 object-cover"
-                        />
-                        <p className="mt-2">Tags: {meme.tags.join(", ")}</p>
-                        <p className="mt-2">Caption: {captions[meme.id]}</p>
-                        <p className="mt-2">Vibe: {vibes[meme.id]}</p>
-                        <div className="mt-2">
-                            {isLoggedIn ? (
-                                <BidInput onBid={handleBid} memeId={meme.id} />
-                            ) : (
-                                <div className="text-yellow-500">
-                                    Please{" "}
-                                    <Link
-                                        to="/login"
-                                        className="text-blue-500 underline"
-                                    >
-                                        login
-                                    </Link>{" "}
-                                    to bid on memes
-                                </div>
-                            )}
-                            <div className="mt-2">
-                                {bids[meme.id]?.length > 0 ? (
-                                    <div className="text-sm">
-                                        <p className="font-bold">
-                                            Highest Bid:{" "}
-                                            {getHighestBid(meme.id).amount}
-                                        </p>
-                                        <p className="font-bold">
-                                            Bidder Name:{" "}
-                                            {getHighestBid(meme.id).bidder}
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <p className="text-sm text-gray-400">
-                                        No bids yet
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                        <div className="mt-2">
-                            {isLoggedIn ? (
-                                <>
-                                    <button
-                                        onClick={() =>
-                                            handleVote(meme.id, "up")
-                                        }
-                                        className={`bg-green-500 text-white p-2 rounded mr-2 neon-glow ${
-                                            hasUserVoted(meme.id, "up")
-                                                ? "opacity-50 cursor-not-allowed"
-                                                : ""
-                                        }`}
-                                        disabled={hasUserVoted(meme.id, "up")}
-                                    >
-                                        Upvote
-                                    </button>
-                                    <span className="mr-4">
-                                        ↑ {getVoteCounts(meme.id).upvotes}
-                                    </span>
-                                    <button
-                                        onClick={() =>
-                                            handleVote(meme.id, "down")
-                                        }
-                                        className={`bg-green-500 text-white p-2 rounded mr-2 neon-glow ${
-                                            hasUserVoted(meme.id, "down")
-                                                ? "opacity-50 cursor-not-allowed"
-                                                : ""
-                                        }`}
-                                        disabled={hasUserVoted(meme.id, "down")}
-                                    >
-                                        Downvote
-                                    </button>
-                                    <span>
-                                        ↓ {getVoteCounts(meme.id).downvotes}
-                                    </span>
-                                </>
-                            ) : (
-                                <div className="text-yellow-500">
-                                    Please{" "}
-                                    <Link
-                                        to="/login"
-                                        className="text-blue-500 underline"
-                                    >
-                                        login
-                                    </Link>{" "}
-                                    to vote on memes
-                                </div>
-                            )}
-                        </div>
-                        {isLoggedIn && meme.userId === user?.id && (
-                            <button
-                                onClick={() => handleDelete(meme.id)}
-                                className="bg-red-500 text-white p-2 rounded mt-2 neon-glow"
-                            >
-                                Delete Meme
-                            </button>
-                        )}
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-
-    const MyMemes = () => {
-        const [title, setTitle] = useState("");
-        const [imageUrl, setImageUrl] = useState("");
-        const [tags, setTags] = useState([]);
-        const [tagInput, setTagInput] = useState("");
-
-        const handleSubmit = (e) => {
-            e.preventDefault();
-            const newMeme = {
-                id: Date.now(),
-                title,
-                imageUrl: imageUrl || "https://picsum.photos/200",
-                tags,
-                userId: user.id,
-                postedBy: user.name,
-                createdAt: new Date().toISOString(),
-            };
-            const updatedMemes = [...memes, newMeme];
-            setMemes(updatedMemes);
-            localStorage.setItem("memes", JSON.stringify(updatedMemes));
-            setTitle("");
-            setImageUrl("");
-            setTags([]);
-            setTagInput("");
-            // Mock AI caption and vibe
-            const mockCaption = `"${newMeme.title} to the moon!"`;
-            const mockVibe = `"Neon ${newMeme.tags[0]} Vibes"`;
-            setCaptions({ ...captions, [newMeme.id]: mockCaption });
-            setVibes({ ...vibes, [newMeme.id]: mockVibe });
-            localStorage.setItem(
-                "captions",
-                JSON.stringify({ ...captions, [newMeme.id]: mockCaption })
-            );
-            localStorage.setItem(
-                "vibes",
-                JSON.stringify({ ...vibes, [newMeme.id]: mockVibe })
-            );
-        };
-
-        const handleTagInputKeyDown = (e) => {
-            if (e.key === "Enter" && tagInput.trim()) {
-                e.preventDefault();
-                setTags([...tags, tagInput.trim()]);
-                setTagInput("");
-            }
-        };
-
-        const removeTag = (index) => {
-            setTags(tags.filter((_, i) => i !== index));
-        };
-
-        return (
-            <div className="container mx-auto p-4 bg-gray-900 text-white">
-                <h1 className="text-3xl font-bold mb-4 text-pink-500">
-                    My Memes
-                </h1>
-                <form onSubmit={handleSubmit} className="mb-4">
-                    <input
-                        type="text"
-                        placeholder="Title"
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        className="border p-2 mr-2 bg-gray-800 text-white rounded-lg"
-                    />
-                    <input
-                        type="text"
-                        placeholder="Image URL"
-                        value={imageUrl}
-                        onChange={(e) => setImageUrl(e.target.value)}
-                        className="border p-2 mr-2 bg-gray-800 text-white rounded-lg"
-                    />
-                    <input
-                        type="text"
-                        placeholder="Add a tag and press Enter"
-                        value={tagInput}
-                        onChange={(e) => setTagInput(e.target.value)}
-                        onKeyDown={handleTagInputKeyDown}
-                        className="border p-2 mr-2 bg-gray-800 text-white rounded-lg"
-                    />
-                    <div className="flex flex-wrap mt-2">
-                        {tags.map((tag, index) => (
-                            <span
-                                key={index}
-                                className="bg-blue-500 text-white p-2 rounded mr-2 mb-2"
-                            >
-                                {tag}
-                                <button
-                                    type="button"
-                                    onClick={() => removeTag(index)}
-                                    className="ml-2 text-white"
-                                >
-                                    ×
-                                </button>
-                            </span>
-                        ))}
-                    </div>
-                    <button
-                        type="submit"
-                        className="bg-green-500 text-white p-2 mt-4 rounded neon-glow"
-                    >
-                        Create Meme
-                    </button>
-                </form>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {memes
-                        .filter((meme) => meme.userId === user.id)
-                        .map((meme) => (
-                            <div
-                                key={meme.id}
-                                className="border p-4 rounded bg-gray-800 glitch-hover"
-                            >
-                                <div className="flex justify-between items-center mb-2">
-                                    <h2 className="text-xl font-bold">
-                                        {meme.title}
-                                    </h2>
-                                    <span className="text-sm text-gray-400">
-                                        Posted by {meme.postedBy}
-                                    </span>
-                                </div>
-                                <img
-                                    src={meme.imageUrl}
-                                    alt={meme.title}
-                                    className="w-full h-48 object-cover"
-                                />
-                                <p className="mt-2">
-                                    Tags: {meme.tags.join(", ")}
-                                </p>
-                                <p className="mt-2">
-                                    Caption: {captions[meme.id]}
-                                </p>
-                                <p className="mt-2">Vibe: {vibes[meme.id]}</p>
-
-                                <div className="mt-2">
-                                    <div className="mt-2">
-                                        {bids[meme.id]?.length > 0 ? (
-                                            <div className="text-sm">
-                                                <p className="font-bold">
-                                                    Highest Bid:{" "}
-                                                    {
-                                                        getHighestBid(meme.id)
-                                                            .amount
-                                                    }
-                                                </p>
-                                                <p className="font-bold">
-                                                    Bidder Name:{" "}
-                                                    {
-                                                        getHighestBid(meme.id)
-                                                            .bidder
-                                                    }
-                                                </p>
-                                            </div>
-                                        ) : (
-                                            <p className="text-sm text-gray-400">
-                                                No bids yet
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="mt-2">
-                                    {isLoggedIn ? (
-                                        <>
-                                            <button
-                                                onClick={() =>
-                                                    handleVote(meme.id, "up")
-                                                }
-                                                className={`bg-green-500 text-white p-2 rounded mr-2 neon-glow ${
-                                                    hasUserVoted(meme.id, "up")
-                                                        ? "opacity-50 cursor-not-allowed"
-                                                        : ""
-                                                }`}
-                                                disabled={hasUserVoted(
-                                                    meme.id,
-                                                    "up"
-                                                )}
-                                            >
-                                                Upvote
-                                            </button>
-                                            <span className="mr-4">
-                                                ↑{" "}
-                                                {getVoteCounts(meme.id).upvotes}
-                                            </span>
-                                            <button
-                                                onClick={() =>
-                                                    handleVote(meme.id, "down")
-                                                }
-                                                className={`bg-green-500 text-white p-2 rounded mr-2 neon-glow ${
-                                                    hasUserVoted(
-                                                        meme.id,
-                                                        "down"
-                                                    )
-                                                        ? "opacity-50 cursor-not-allowed"
-                                                        : ""
-                                                }`}
-                                                disabled={hasUserVoted(
-                                                    meme.id,
-                                                    "down"
-                                                )}
-                                            >
-                                                Downvote
-                                            </button>
-                                            <span>
-                                                ↓{" "}
-                                                {
-                                                    getVoteCounts(meme.id)
-                                                        .downvotes
-                                                }
-                                            </span>
-                                        </>
-                                    ) : (
-                                        <div className="text-yellow-500">
-                                            Please{" "}
-                                            <Link
-                                                to="/login"
-                                                className="text-blue-500 underline"
-                                            >
-                                                login
-                                            </Link>{" "}
-                                            to vote on memes
-                                        </div>
-                                    )}
-                                </div>
-                                <button
-                                    onClick={() => handleDelete(meme.id)}
-                                    className="bg-red-500 text-white p-2 rounded mt-2 neon-glow"
-                                >
-                                    Delete Meme
-                                </button>
-                            </div>
-                        ))}
-                </div>
-            </div>
-        );
-    };
-
-    const Signup = () => {
-        const [name, setName] = useState("");
-        const [email, setEmail] = useState("");
-        const [password, setPassword] = useState("");
-
-        const handleSignupSubmit = (e) => {
-            e.preventDefault();
-            const storedUsers = JSON.parse(
-                localStorage.getItem("users") || "[]"
-            );
-            const existingUser = storedUsers.find((u) => u.email === email);
-            if (existingUser) {
-                alert("User already exists");
-            } else {
-                const newUser = { 
-                    id: Date.now(), 
-                    name, 
-                    email, 
-                    password,
-                    credits: 500 // Add initial credits
-                };
-                storedUsers.push(newUser);
-                localStorage.setItem("users", JSON.stringify(storedUsers));
-                handleLogin(name, email, password);
-                navigate("/");
-            }
-        };
-
-        return (
-            <div className="container mx-auto p-4 bg-gray-900 text-white">
-                <h1 className="text-3xl font-bold mb-4 text-pink-500">
-                    Signup
-                </h1>
-                <form onSubmit={handleSignupSubmit} className="mb-4">
-                    <input
-                        type="text"
-                        placeholder="Name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="border p-2 mr-2 bg-gray-800 text-white rounded-lg"
-                    />
-                    <input
-                        type="email"
-                        placeholder="Email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="border p-2 mr-2 bg-gray-800 text-white rounded-lg"
-                    />
-                    <input
-                        type="password"
-                        placeholder="Password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="border p-2 mr-2 bg-gray-800 text-white rounded-lg"
-                    />
-                    <button
-                        type="submit"
-                        className="bg-green-500 text-white p-2 mt-4 rounded neon-glow"
-                    >
-                        Signup
-                    </button>
-                </form>
-                <p className="mt-2">
-                    Already have an account?{" "}
-                    <Link to="/login" className="text-blue-500">
-                        Login here
-                    </Link>
-                    .
-                </p>
-            </div>
-        );
-    };
-
-    const Login = () => {
-        const [email, setEmail] = useState("");
-        const [password, setPassword] = useState("");
-
-        const handleLoginSubmit = (e) => {
-            e.preventDefault();
-            handleLogin(null, email, password);
-        };
-
-        return (
-            <div className="container mx-auto p-4 bg-gray-900 text-white">
-                <h1 className="text-3xl font-bold mb-4 text-pink-500">Login</h1>
-                <form onSubmit={handleLoginSubmit} className="mb-4">
-                    <input
-                        type="email"
-                        placeholder="Email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="border p-2 mr-2 bg-gray-800 text-white rounded-lg"
-                    />
-                    <input
-                        type="password"
-                        placeholder="Password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="border p-2 mr-2 bg-gray-800 text-white rounded-lg"
-                    />
-                    <button
-                        type="submit"
-                        className="bg-green-500 text-white p-2 mt-4 rounded neon-glow"
-                    >
-                        Login
-                    </button>
-                </form>
-                <p className="mt-2">
-                    Don't have an account?{" "}
-                    <Link to="/signup" className="text-blue-500">
-                        Create one
-                    </Link>
-                    .
-                </p>
-            </div>
-        );
-    };
-
-    const Header = () => {
-        const [showDropdown, setShowDropdown] = useState(false);
-        const dropdownRef = useRef(null);
-
-        useEffect(() => {
-            const handleClickOutside = (event) => {
-                if (
-                    dropdownRef.current &&
-                    !dropdownRef.current.contains(event.target)
-                ) {
-                    setShowDropdown(false);
-                }
-            };
-
-            document.addEventListener("mousedown", handleClickOutside);
-            return () => {
-                document.removeEventListener("mousedown", handleClickOutside);
-            };
-        }, []);
-
-        return (
-            <header className="bg-gray-800 p-4 flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-pink-500">MemeHustle</h1>
-                <nav>
-                    <Link to="/" className="text-white mr-4">
-                        MemeHub
-                    </Link>
-                    {isLoggedIn && (
-                        <Link to="/my-memes" className="text-white mr-4">
-                            My Memes
-                        </Link>
-                    )}
-                    {isLoggedIn ? (
-                        <div
-                            className="relative inline-block"
-                            ref={dropdownRef}
-                        >
-                            <div className="flex items-center">
-                                <span className="text-green-400 mr-4">
-                                    Credits: {user.credits}
-                                </span>
-                                <button
-                                    className="text-white flex items-center"
-                                    onClick={() => setShowDropdown(!showDropdown)}
-                                >
-                                    {user.name}
-                                    <span className="ml-1">▼</span>
-                                </button>
-                            </div>
-                            {showDropdown && (
-                                <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded shadow-lg z-10">
-                                    <button
-                                        onClick={() => {
-                                            handleLogout();
-                                            setShowDropdown(false);
-                                        }}
-                                        className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700"
-                                    >
-                                        Logout
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <>
-                            <Link to="/login" className="text-white mr-4">
-                                Login
-                            </Link>
-                            <Link to="/signup" className="text-white">
-                                Signup
-                            </Link>
-                        </>
-                    )}
-                </nav>
-            </header>
-        );
-    };
-
     return (
         <>
-            <Header />
+            <Header
+                user={user}
+                isLoggedIn={isLoggedIn}
+                handleLogout={handleLogout}
+            />
             <Routes>
-                <Route path="/" element={<MemeHub />} />
-                <Route path="/my-memes" element={<MyMemes />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
+                <Route
+                    path="/"
+                    element={
+                        <MemeHub
+                            memes={memes}
+                            typingText={typingText}
+                            isLoggedIn={isLoggedIn}
+                            user={user}
+                            bids={bids}
+                            captions={captions}
+                            vibes={vibes}
+                            handleBid={handleBid}
+                            getHighestBid={getHighestBid}
+                            handleVote={handleVote}
+                            hasUserVoted={hasUserVoted}
+                            getVoteCounts={getVoteCounts}
+                            handleDelete={handleDelete}
+                        />
+                    }
+                />
+                <Route
+                    path="/my-memes"
+                    element={
+                        <MyMemes
+                            user={user}
+                            memes={memes}
+                            setMemes={setMemes}
+                            captions={captions}
+                            setCaptions={setCaptions}
+                            vibes={vibes}
+                            setVibes={setVibes}
+                            bids={bids}
+                            getHighestBid={getHighestBid}
+                            handleVote={handleVote}
+                            hasUserVoted={hasUserVoted}
+                            getVoteCounts={getVoteCounts}
+                            handleDelete={handleDelete}
+                            handleBid={handleBid}
+                            isLoggedIn={isLoggedIn}
+                        />
+                    }
+                />
+                <Route
+                    path="/login"
+                    element={<Login handleLogin={handleLogin} />}
+                />
+                <Route
+                    path="/signup"
+                    element={<Signup handleLogin={handleLogin} />}
+                />
             </Routes>
         </>
     );
