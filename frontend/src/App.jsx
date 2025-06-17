@@ -5,7 +5,7 @@ import {
     Link,
     Navigate,
     Routes,
-    useNavigate
+    useNavigate,
 } from "react-router-dom";
 import "./App.css";
 
@@ -23,6 +23,7 @@ function App() {
     const [user, setUser] = useState(null);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const navigate = useNavigate();
+    const [bidAmount, setBidAmount] = useState(100);
 
     useEffect(() => {
         const storedMemes = localStorage.getItem("memes");
@@ -54,43 +55,72 @@ function App() {
         typeWriter();
     }, []);
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        const newMeme = {
-            id: Date.now(),
-            title,
-            imageUrl: imageUrl || "https://picsum.photos/200",
-            tags,
+    const handleBid = (memeId, amount) => {
+        if (!isLoggedIn) return;
+
+        const currentBids = bids[memeId] || [];
+        const highestBid =
+            currentBids.length > 0
+                ? Math.max(...currentBids.map((bid) => bid.amount))
+                : 0;
+
+        // Only allow bidding if the new bid is higher than the current highest bid
+        if (amount <= highestBid) {
+            alert("Your bid must be higher than the current highest bid!");
+            return;
+        }
+
+        const newBid = {
             userId: user.id,
-            postedBy: user.name,
-            createdAt: new Date().toISOString()
+            userName: user.name,
+            amount: amount,
+            timestamp: new Date().toISOString(),
         };
-        const updatedMemes = [...memes, newMeme];
-        setMemes(updatedMemes);
-        localStorage.setItem("memes", JSON.stringify(updatedMemes));
-        setTitle("");
-        setImageUrl("");
-        setTags([]);
-        setTagInput("");
-        // Mock AI caption and vibe
-        const mockCaption = `"${newMeme.title} to the moon!"`;
-        const mockVibe = `"Neon ${newMeme.tags[0]} Vibes"`;
-        setCaptions({ ...captions, [newMeme.id]: mockCaption });
-        setVibes({ ...vibes, [newMeme.id]: mockVibe });
-        localStorage.setItem(
-            "captions",
-            JSON.stringify({ ...captions, [newMeme.id]: mockCaption })
+
+        // Check if user already has a bid
+        const existingBidIndex = currentBids.findIndex(
+            (bid) => bid.userId === user.id
         );
-        localStorage.setItem(
-            "vibes",
-            JSON.stringify({ ...vibes, [newMeme.id]: mockVibe })
-        );
+
+        let updatedBids;
+        if (existingBidIndex !== -1) {
+            // Update existing bid
+            const updatedBidsArray = [...currentBids];
+            updatedBidsArray[existingBidIndex] = newBid;
+            updatedBids = {
+                ...bids,
+                [memeId]: updatedBidsArray,
+            };
+        } else {
+            // Add new bid
+            updatedBids = {
+                ...bids,
+                [memeId]: [...currentBids, newBid],
+            };
+        }
+
+        setBids(updatedBids);
+        localStorage.setItem("bids", JSON.stringify(updatedBids));
+
+        // Show bid confirmation
+        alert(`${user.name} bid ${amount} credits!`);
     };
 
-    const handleBid = (memeId, amount) => {
-        const newBids = { ...bids, [memeId]: (bids[memeId] || 0) + amount };
-        setBids(newBids);
-        localStorage.setItem("bids", JSON.stringify(newBids));
+    const getHighestBid = (memeId) => {
+        const memeBids = bids[memeId] || [];
+        if (memeBids.length === 0) return null;
+
+        // Find the highest bid
+        const highestBid = memeBids.reduce(
+            (highest, current) =>
+                current.amount > highest.amount ? current : highest,
+            memeBids[0]
+        );
+
+        return {
+            amount: highestBid.amount,
+            bidder: highestBid.userName,
+        };
     };
 
     const handleVote = (memeId, type) => {
@@ -104,20 +134,28 @@ function App() {
         if (type === "up") {
             // If user has already upvoted, remove the upvote
             if (currentVotes.upvotes.includes(userId)) {
-                newVotes.upvotes = currentVotes.upvotes.filter(id => id !== userId);
+                newVotes.upvotes = currentVotes.upvotes.filter(
+                    (id) => id !== userId
+                );
             } else {
                 // Add upvote and remove from downvotes if exists
                 newVotes.upvotes = [...currentVotes.upvotes, userId];
-                newVotes.downvotes = currentVotes.downvotes.filter(id => id !== userId);
+                newVotes.downvotes = currentVotes.downvotes.filter(
+                    (id) => id !== userId
+                );
             }
         } else {
             // If user has already downvoted, remove the downvote
             if (currentVotes.downvotes.includes(userId)) {
-                newVotes.downvotes = currentVotes.downvotes.filter(id => id !== userId);
+                newVotes.downvotes = currentVotes.downvotes.filter(
+                    (id) => id !== userId
+                );
             } else {
                 // Add downvote and remove from upvotes if exists
                 newVotes.downvotes = [...currentVotes.downvotes, userId];
-                newVotes.upvotes = currentVotes.upvotes.filter(id => id !== userId);
+                newVotes.upvotes = currentVotes.upvotes.filter(
+                    (id) => id !== userId
+                );
             }
         }
 
@@ -130,14 +168,14 @@ function App() {
         const memeVotes = votes[memeId] || { upvotes: [], downvotes: [] };
         return {
             upvotes: memeVotes.upvotes.length,
-            downvotes: memeVotes.downvotes.length
+            downvotes: memeVotes.downvotes.length,
         };
     };
 
     const hasUserVoted = (memeId, type) => {
         if (!isLoggedIn) return false;
         const memeVotes = votes[memeId] || { upvotes: [], downvotes: [] };
-        return type === "up" 
+        return type === "up"
             ? memeVotes.upvotes.includes(user.id)
             : memeVotes.downvotes.includes(user.id);
     };
@@ -182,6 +220,32 @@ function App() {
         navigate("/login");
     };
 
+    const BidInput = ({ onBid, memeId }) => {
+        const [localBidAmount, setLocalBidAmount] = useState(100);
+
+        const handleBid = () => {
+            onBid(memeId, localBidAmount);
+        };
+
+        return (
+            <div className="flex items-center justify-center space-x-2">
+                <input
+                    type="number"
+                    value={localBidAmount}
+                    onChange={(e) => setLocalBidAmount(Number(e.target.value))}
+                    min="1"
+                    className="w-24 bg-gray-700 text-white p-2 rounded"
+                />
+                <button
+                    onClick={handleBid}
+                    className="bg-green-500 text-white p-2 rounded neon-glow"
+                >
+                    Bid Credits
+                </button>
+            </div>
+        );
+    };
+
     const MemeHub = () => (
         <div className="container mx-auto p-4 bg-gray-900 text-white">
             <h1 className="text-3xl font-bold mb-4 text-pink-500">
@@ -209,50 +273,84 @@ function App() {
                         <p className="mt-2">Vibe: {vibes[meme.id]}</p>
                         <div className="mt-2">
                             {isLoggedIn ? (
-                                <>
-                                    <button
-                                        onClick={() => handleBid(meme.id, 100)}
-                                        className="bg-green-500 text-white p-2 rounded mr-2 neon-glow"
-                                    >
-                                        Bid 100 Credits
-                                    </button>
-                                    <span>
-                                        Current Bid: {bids[meme.id] || 0} Credits
-                                    </span>
-                                </>
+                                <BidInput onBid={handleBid} memeId={meme.id} />
                             ) : (
                                 <div className="text-yellow-500">
-                                    Please <Link to="/login" className="text-blue-500 underline">login</Link> to bid on memes
+                                    Please{" "}
+                                    <Link
+                                        to="/login"
+                                        className="text-blue-500 underline"
+                                    >
+                                        login
+                                    </Link>{" "}
+                                    to bid on memes
                                 </div>
                             )}
+                            <div className="mt-2">
+                                {bids[meme.id]?.length > 0 ? (
+                                    <div className="text-sm">
+                                        <p className="font-bold">
+                                            Highest Bid:{" "}
+                                            {getHighestBid(meme.id).amount}
+                                        </p>
+                                        <p className="font-bold">
+                                            Bidder Name:{" "}
+                                            {getHighestBid(meme.id).bidder}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-gray-400">
+                                        No bids yet
+                                    </p>
+                                )}
+                            </div>
                         </div>
                         <div className="mt-2">
                             {isLoggedIn ? (
                                 <>
                                     <button
-                                        onClick={() => handleVote(meme.id, "up")}
+                                        onClick={() =>
+                                            handleVote(meme.id, "up")
+                                        }
                                         className={`bg-green-500 text-white p-2 rounded mr-2 neon-glow ${
-                                            hasUserVoted(meme.id, "up") ? "opacity-50 cursor-not-allowed" : ""
+                                            hasUserVoted(meme.id, "up")
+                                                ? "opacity-50 cursor-not-allowed"
+                                                : ""
                                         }`}
                                         disabled={hasUserVoted(meme.id, "up")}
                                     >
                                         Upvote
                                     </button>
-                                    <span className="mr-4">↑ {getVoteCounts(meme.id).upvotes}</span>
+                                    <span className="mr-4">
+                                        ↑ {getVoteCounts(meme.id).upvotes}
+                                    </span>
                                     <button
-                                        onClick={() => handleVote(meme.id, "down")}
+                                        onClick={() =>
+                                            handleVote(meme.id, "down")
+                                        }
                                         className={`bg-green-500 text-white p-2 rounded mr-2 neon-glow ${
-                                            hasUserVoted(meme.id, "down") ? "opacity-50 cursor-not-allowed" : ""
+                                            hasUserVoted(meme.id, "down")
+                                                ? "opacity-50 cursor-not-allowed"
+                                                : ""
                                         }`}
                                         disabled={hasUserVoted(meme.id, "down")}
                                     >
                                         Downvote
                                     </button>
-                                    <span>↓ {getVoteCounts(meme.id).downvotes}</span>
+                                    <span>
+                                        ↓ {getVoteCounts(meme.id).downvotes}
+                                    </span>
                                 </>
                             ) : (
                                 <div className="text-yellow-500">
-                                    Please <Link to="/login" className="text-blue-500 underline">login</Link> to vote on memes
+                                    Please{" "}
+                                    <Link
+                                        to="/login"
+                                        className="text-blue-500 underline"
+                                    >
+                                        login
+                                    </Link>{" "}
+                                    to vote on memes
                                 </div>
                             )}
                         </div>
@@ -285,7 +383,7 @@ function App() {
                 tags,
                 userId: user.id,
                 postedBy: user.name,
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
             };
             const updatedMemes = [...memes, newMeme];
             setMemes(updatedMemes);
@@ -323,7 +421,9 @@ function App() {
 
         return (
             <div className="container mx-auto p-4 bg-gray-900 text-white">
-                <h1 className="text-3xl font-bold mb-4 text-pink-500">My Memes</h1>
+                <h1 className="text-3xl font-bold mb-4 text-pink-500">
+                    My Memes
+                </h1>
                 <form onSubmit={handleSubmit} className="mb-4">
                     <input
                         type="text"
@@ -380,48 +480,114 @@ function App() {
                                 className="border p-4 rounded bg-gray-800 glitch-hover"
                             >
                                 <div className="flex justify-between items-center mb-2">
-                                    <h2 className="text-xl font-bold">{meme.title}</h2>
-                                    <span className="text-sm text-gray-400">Posted by {meme.postedBy}</span>
+                                    <h2 className="text-xl font-bold">
+                                        {meme.title}
+                                    </h2>
+                                    <span className="text-sm text-gray-400">
+                                        Posted by {meme.postedBy}
+                                    </span>
                                 </div>
                                 <img
                                     src={meme.imageUrl}
                                     alt={meme.title}
                                     className="w-full h-48 object-cover"
                                 />
-                                <p className="mt-2">Tags: {meme.tags.join(", ")}</p>
-                                <p className="mt-2">Caption: {captions[meme.id]}</p>
+                                <p className="mt-2">
+                                    Tags: {meme.tags.join(", ")}
+                                </p>
+                                <p className="mt-2">
+                                    Caption: {captions[meme.id]}
+                                </p>
                                 <p className="mt-2">Vibe: {vibes[meme.id]}</p>
+
                                 <div className="mt-2">
-                                    <button
-                                        onClick={() => handleBid(meme.id, 100)}
-                                        className="bg-green-500 text-white p-2 rounded mr-2 neon-glow"
-                                    >
-                                        Bid 100 Credits
-                                    </button>
-                                    <span>
-                                        Current Bid: {bids[meme.id] || 0} Credits
-                                    </span>
+                                    <div className="mt-2">
+                                        {bids[meme.id]?.length > 0 ? (
+                                            <div className="text-sm">
+                                                <p className="font-bold">
+                                                    Highest Bid:{" "}
+                                                    {
+                                                        getHighestBid(meme.id)
+                                                            .amount
+                                                    }
+                                                </p>
+                                                <p className="font-bold">
+                                                    Bidder Name:{" "}
+                                                    {
+                                                        getHighestBid(meme.id)
+                                                            .bidder
+                                                    }
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-gray-400">
+                                                No bids yet
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="mt-2">
-                                    <button
-                                        onClick={() => handleVote(meme.id, "up")}
-                                        className={`bg-green-500 text-white p-2 rounded mr-2 neon-glow ${
-                                            hasUserVoted(meme.id, "up") ? "opacity-50 cursor-not-allowed" : ""
-                                        }`}
-                                        disabled={hasUserVoted(meme.id, "up")}
-                                    >
-                                        Upvote
-                                    </button>
-                                    <button
-                                        onClick={() => handleVote(meme.id, "down")}
-                                        className={`bg-green-500 text-white p-2 rounded mr-2 neon-glow ${
-                                            hasUserVoted(meme.id, "down") ? "opacity-50 cursor-not-allowed" : ""
-                                        }`}
-                                        disabled={hasUserVoted(meme.id, "down")}
-                                    >
-                                        Downvote
-                                    </button>
-                                    <span>Votes: {getVoteCounts(meme.id).upvotes - getVoteCounts(meme.id).downvotes}</span>
+                                    {isLoggedIn ? (
+                                        <>
+                                            <button
+                                                onClick={() =>
+                                                    handleVote(meme.id, "up")
+                                                }
+                                                className={`bg-green-500 text-white p-2 rounded mr-2 neon-glow ${
+                                                    hasUserVoted(meme.id, "up")
+                                                        ? "opacity-50 cursor-not-allowed"
+                                                        : ""
+                                                }`}
+                                                disabled={hasUserVoted(
+                                                    meme.id,
+                                                    "up"
+                                                )}
+                                            >
+                                                Upvote
+                                            </button>
+                                            <span className="mr-4">
+                                                ↑{" "}
+                                                {getVoteCounts(meme.id).upvotes}
+                                            </span>
+                                            <button
+                                                onClick={() =>
+                                                    handleVote(meme.id, "down")
+                                                }
+                                                className={`bg-green-500 text-white p-2 rounded mr-2 neon-glow ${
+                                                    hasUserVoted(
+                                                        meme.id,
+                                                        "down"
+                                                    )
+                                                        ? "opacity-50 cursor-not-allowed"
+                                                        : ""
+                                                }`}
+                                                disabled={hasUserVoted(
+                                                    meme.id,
+                                                    "down"
+                                                )}
+                                            >
+                                                Downvote
+                                            </button>
+                                            <span>
+                                                ↓{" "}
+                                                {
+                                                    getVoteCounts(meme.id)
+                                                        .downvotes
+                                                }
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <div className="text-yellow-500">
+                                            Please{" "}
+                                            <Link
+                                                to="/login"
+                                                className="text-blue-500 underline"
+                                            >
+                                                login
+                                            </Link>{" "}
+                                            to vote on memes
+                                        </div>
+                                    )}
                                 </div>
                                 <button
                                     onClick={() => handleDelete(meme.id)}
@@ -554,14 +720,17 @@ function App() {
 
         useEffect(() => {
             const handleClickOutside = (event) => {
-                if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                if (
+                    dropdownRef.current &&
+                    !dropdownRef.current.contains(event.target)
+                ) {
                     setShowDropdown(false);
                 }
             };
 
-            document.addEventListener('mousedown', handleClickOutside);
+            document.addEventListener("mousedown", handleClickOutside);
             return () => {
-                document.removeEventListener('mousedown', handleClickOutside);
+                document.removeEventListener("mousedown", handleClickOutside);
             };
         }, []);
 
@@ -578,12 +747,15 @@ function App() {
                         </Link>
                     )}
                     {isLoggedIn ? (
-                        <div className="relative inline-block" ref={dropdownRef}>
-                            <button 
+                        <div
+                            className="relative inline-block"
+                            ref={dropdownRef}
+                        >
+                            <button
                                 className="text-white flex items-center"
                                 onClick={() => setShowDropdown(!showDropdown)}
                             >
-                                {user.name} 
+                                {user.name}
                                 <span className="ml-1">▼</span>
                             </button>
                             {showDropdown && (
