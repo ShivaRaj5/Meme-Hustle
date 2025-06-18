@@ -12,6 +12,8 @@ const MemeCard = ({ meme, onUpdate }) => {
     const [userBid, setUserBid] = useState(null);
     const [bidAmount, setBidAmount] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [votingStates, setVotingStates] = useState({});
+    const [cancellingBid, setCancellingBid] = useState(false);
 
     useEffect(() => {
         loadVotes();
@@ -68,6 +70,9 @@ const MemeCard = ({ meme, onUpdate }) => {
             return;
         }
 
+        // Set loading state for this specific vote
+        setVotingStates(prev => ({ ...prev, [type]: true }));
+
         try {
             const { meme: updatedMeme } = await votesAPI.vote(meme.id, type);
             setVotes({ upvotes: updatedMeme.upvotes, downvotes: updatedMeme.downvotes });
@@ -78,6 +83,9 @@ const MemeCard = ({ meme, onUpdate }) => {
             }
         } catch (error) {
             toast.error(error.message || "Failed to vote");
+        } finally {
+            // Clear loading state
+            setVotingStates(prev => ({ ...prev, [type]: false }));
         }
     };
 
@@ -126,6 +134,7 @@ const MemeCard = ({ meme, onUpdate }) => {
     const handleCancelBid = async () => {
         if (!userBid) return;
 
+        setCancellingBid(true);
         try {
             const { refundedCredits } = await bidsAPI.cancel(userBid.id);
             
@@ -140,6 +149,8 @@ const MemeCard = ({ meme, onUpdate }) => {
             toast.success(`Bid cancelled! Refunded ${refundedCredits} credits`);
         } catch (error) {
             toast.error(error.message || "Failed to cancel bid");
+        } finally {
+            setCancellingBid(false);
         }
     };
 
@@ -176,25 +187,39 @@ const MemeCard = ({ meme, onUpdate }) => {
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => handleVote('up')}
+                            disabled={votingStates['up']}
                             className={`flex items-center gap-1 px-3 py-1 rounded transition-colors ${
-                                userVote === 'up'
+                                userVote === 'up' || votingStates['up']
                                     ? 'bg-green-600 text-white'
                                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                             }`}
                         >
                             <span>👍</span>
                             <span>{votes.upvotes}</span>
+                            {votingStates['up'] && (
+                                <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            )}
                         </button>
                         <button
                             onClick={() => handleVote('down')}
+                            disabled={votingStates['down']}
                             className={`flex items-center gap-1 px-3 py-1 rounded transition-colors ${
-                                userVote === 'down'
+                                userVote === 'down' || votingStates['down']
                                     ? 'bg-red-600 text-white'
                                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                             }`}
                         >
                             <span>👎</span>
                             <span>{votes.downvotes}</span>
+                            {votingStates['down'] && (
+                                <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            )}
                         </button>
                     </div>
                 </div>
@@ -219,9 +244,16 @@ const MemeCard = ({ meme, onUpdate }) => {
                                     </span>
                                     <button
                                         onClick={handleCancelBid}
-                                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition-colors"
+                                        disabled={cancellingBid}
+                                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition-colors disabled:bg-red-600/50 disabled:cursor-not-allowed flex items-center space-x-1"
                                     >
-                                        Cancel Bid
+                                        {cancellingBid && (
+                                            <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                        )}
+                                        <span>{cancellingBid ? "Cancelling..." : "Cancel Bid"}</span>
                                     </button>
                                 </div>
                             ) : (
@@ -231,16 +263,23 @@ const MemeCard = ({ meme, onUpdate }) => {
                                         value={bidAmount}
                                         onChange={(e) => setBidAmount(e.target.value)}
                                         placeholder="Enter bid amount"
-                                        className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-purple-500"
+                                        disabled={isLoading}
+                                        className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-purple-500 disabled:bg-gray-600 disabled:cursor-not-allowed"
                                         min="1"
                                         max={user.credits}
                                     />
                                     <button
                                         onClick={handleBid}
                                         disabled={isLoading || !bidAmount}
-                                        className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors disabled:cursor-not-allowed"
+                                        className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors disabled:cursor-not-allowed flex items-center space-x-2"
                                     >
-                                        {isLoading ? "Bidding..." : "Bid"}
+                                        {isLoading && (
+                                            <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                        )}
+                                        <span>{isLoading ? "Bidding..." : "Bid"}</span>
                                     </button>
                                 </div>
                             )}

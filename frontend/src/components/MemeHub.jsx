@@ -19,6 +19,8 @@ const MemeHub = () => {
     const [typingText, setTypingText] = useState("");
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [votingStates, setVotingStates] = useState({});
+    const [deletingStates, setDeletingStates] = useState({});
 
     useEffect(() => {
         loadMemes();
@@ -326,6 +328,9 @@ const MemeHub = () => {
     const handleVote = async (memeId, type) => {
         if (!isLoggedIn) return;
 
+        // Set loading state for this specific vote
+        setVotingStates(prev => ({ ...prev, [`${memeId}-${type}`]: true }));
+
         try {
             const { meme: updatedMeme, voteType, action } = await votesAPI.vote(memeId, type);
             
@@ -360,6 +365,9 @@ const MemeHub = () => {
                 progress: undefined,
                 theme: "dark",
             });
+        } finally {
+            // Clear loading state
+            setVotingStates(prev => ({ ...prev, [`${memeId}-${type}`]: false }));
         }
     };
 
@@ -377,6 +385,9 @@ const MemeHub = () => {
     };
 
     const handleDelete = async (memeId) => {
+        // Set loading state for this specific delete
+        setDeletingStates(prev => ({ ...prev, [memeId]: true }));
+
         try {
             await memesAPI.delete(memeId);
             const updatedMemes = memes.filter((meme) => meme.id !== memeId);
@@ -384,6 +395,9 @@ const MemeHub = () => {
             toast.success("Meme deleted successfully!");
         } catch (error) {
             toast.error(error.message || "Failed to delete meme");
+        } finally {
+            // Clear loading state
+            setDeletingStates(prev => ({ ...prev, [memeId]: false }));
         }
     };
 
@@ -511,27 +525,39 @@ const MemeHub = () => {
                                                 <>
                                                     <button
                                                         onClick={() => handleVote(meme.id, "up")}
+                                                        disabled={userVotes[meme.id] === "up" || votingStates[`${meme.id}-up`]}
                                                         className={`flex items-center space-x-1 px-3 py-1 rounded-full text-sm transition-all duration-200 ${
-                                                            userVotes[meme.id] === "up"
+                                                            userVotes[meme.id] === "up" || votingStates[`${meme.id}-up`]
                                                                 ? "bg-green-500/50 cursor-not-allowed"
                                                                 : "bg-green-500 hover:bg-green-600"
                                                         }`}
-                                                        disabled={userVotes[meme.id] === "up"}
                                                     >
                                                         <span>↑</span>
                                                         <span>{getVoteCounts(meme.id).upvotes}</span>
+                                                        {votingStates[`${meme.id}-up`] && (
+                                                            <svg className="animate-spin h-3 w-3 ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                            </svg>
+                                                        )}
                                                     </button>
                                                     <button
                                                         onClick={() => handleVote(meme.id, "down")}
+                                                        disabled={userVotes[meme.id] === "down" || votingStates[`${meme.id}-down`]}
                                                         className={`flex items-center space-x-1 px-3 py-1 rounded-full text-sm transition-all duration-200 ${
-                                                            userVotes[meme.id] === "down"
+                                                            userVotes[meme.id] === "down" || votingStates[`${meme.id}-down`]
                                                                 ? "bg-red-500/50 cursor-not-allowed"
                                                                 : "bg-red-500 hover:bg-red-600"
                                                         }`}
-                                                        disabled={userVotes[meme.id] === "down"}
                                                     >
                                                         <span>↓</span>
                                                         <span>{getVoteCounts(meme.id).downvotes}</span>
+                                                        {votingStates[`${meme.id}-down`] && (
+                                                            <svg className="animate-spin h-3 w-3 ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                            </svg>
+                                                        )}
                                                     </button>
                                                 </>
                                             ) : (
@@ -551,9 +577,16 @@ const MemeHub = () => {
                                     {isLoggedIn && meme.user_id === user?.id && (
                                         <button
                                             onClick={() => handleDelete(meme.id)}
-                                            className="mt-4 w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 transition-colors duration-200"
+                                            disabled={deletingStates[meme.id]}
+                                            className="mt-4 w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 transition-colors duration-200 disabled:bg-red-500/50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                                         >
-                                            Delete Meme
+                                            {deletingStates[meme.id] && (
+                                                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                            )}
+                                            <span>{deletingStates[meme.id] ? "Deleting..." : "Delete Meme"}</span>
                                         </button>
                                     )}
                                 </div>
