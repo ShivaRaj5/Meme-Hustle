@@ -9,7 +9,6 @@ const router = express.Router();
 router.post("/signup", async (req, res) => {
     try {
         const { name, email, password, credits } = req.body;
-        console.log(name, email, password, credits);
 
         // Check if user already exists
         const { data: existingUser } = await supabase

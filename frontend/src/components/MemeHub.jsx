@@ -12,6 +12,7 @@ const MemeHub = () => {
     const [memes, setMemes] = useState([]);
     const [bids, setBids] = useState({});
     const [votes, setVotes] = useState({});
+    const [userVotes, setUserVotes] = useState({});
     const [captions, setCaptions] = useState({});
     const [vibes, setVibes] = useState({});
     const [typingText, setTypingText] = useState("");
@@ -20,11 +21,14 @@ const MemeHub = () => {
 
     useEffect(() => {
         loadMemes();
-        if (user) {
-            setIsLoggedIn(true);
-        }
+    }, []);
 
-        // Fake terminal typing effect
+    useEffect(() => {
+        setIsLoggedIn(!!user);
+    }, [user]);
+
+    // Fake terminal typing effect
+    useEffect(() => {
         const text = "Welcome to MemeHustle...";
         let i = 0;
         const typeWriter = () => {
@@ -35,8 +39,10 @@ const MemeHub = () => {
             }
         };
         typeWriter();
+    }, []);
 
-        // Set up Socket.IO listeners
+    // Set up Socket.IO listeners
+    useEffect(() => {
         setupSocketListeners();
 
         // Cleanup on unmount
@@ -158,6 +164,7 @@ const MemeHub = () => {
         try {
             const bidsData = {};
             const votesData = {};
+            const userVotesData = {};
             
             for (const meme of memesList) {
                 // Load bids
@@ -177,10 +184,22 @@ const MemeHub = () => {
                     console.error(`Failed to load votes for meme ${meme.id}:`, error);
                     votesData[meme.id] = { upvotes: 0, downvotes: 0 };
                 }
+                
+                // Load user vote (only if logged in)
+                if (isLoggedIn) {
+                    try {
+                        const { voteType } = await votesAPI.getUserVote(meme.id);
+                        userVotesData[meme.id] = voteType;
+                    } catch (error) {
+                        console.error(`Failed to load user vote for meme ${meme.id}:`, error);
+                        userVotesData[meme.id] = null;
+                    }
+                }
             }
             
             setBids(bidsData);
             setVotes(votesData);
+            setUserVotes(userVotesData);
         } catch (error) {
             console.error("Failed to load bids and votes:", error);
         }
@@ -290,7 +309,7 @@ const MemeHub = () => {
         if (!isLoggedIn) return;
 
         try {
-            const { meme: updatedMeme } = await votesAPI.vote(memeId, type);
+            const { meme: updatedMeme, voteType, action } = await votesAPI.vote(memeId, type);
             
             // Update local votes state
             const updatedVotes = {
@@ -298,6 +317,20 @@ const MemeHub = () => {
                 [memeId]: { upvotes: updatedMeme.upvotes, downvotes: updatedMeme.downvotes }
             };
             setVotes(updatedVotes);
+            
+            // Update user vote state
+            const updatedUserVotes = { ...userVotes };
+            if (action === 'removed') {
+                // Vote was removed
+                updatedUserVotes[memeId] = null;
+            } else if (action === 'changed') {
+                // Vote type was changed
+                updatedUserVotes[memeId] = voteType;
+            } else if (action === 'added') {
+                // New vote was added
+                updatedUserVotes[memeId] = voteType;
+            }
+            setUserVotes(updatedUserVotes);
         } catch (error) {
             toast.error(error.message || "Failed to vote", {
                 position: "top-right",
@@ -322,9 +355,7 @@ const MemeHub = () => {
 
     const hasUserVoted = (memeId, type) => {
         if (!isLoggedIn) return false;
-        // This would need to be implemented with a separate API call to get user's vote
-        // For now, we'll return false to avoid complexity
-        return false;
+        return userVotes[memeId] === type;
     };
 
     const handleDelete = async (memeId) => {
@@ -453,62 +484,28 @@ const MemeHub = () => {
                                             {isLoggedIn ? (
                                                 <>
                                                     <button
-                                                        onClick={() =>
-                                                            handleVote(
-                                                                meme.id,
-                                                                "up"
-                                                            )
-                                                        }
+                                                        onClick={() => handleVote(meme.id, "up")}
                                                         className={`flex items-center space-x-1 px-3 py-1 rounded-full text-sm transition-all duration-200 ${
-                                                            hasUserVoted(
-                                                                meme.id,
-                                                                "up"
-                                                            )
+                                                            userVotes[meme.id] === "up"
                                                                 ? "bg-green-500/50 cursor-not-allowed"
                                                                 : "bg-green-500 hover:bg-green-600"
                                                         }`}
-                                                        disabled={hasUserVoted(
-                                                            meme.id,
-                                                            "up"
-                                                        )}
+                                                        disabled={userVotes[meme.id] === "up"}
                                                     >
                                                         <span>↑</span>
-                                                        <span>
-                                                            {
-                                                                getVoteCounts(
-                                                                    meme.id
-                                                                ).upvotes
-                                                            }
-                                                        </span>
+                                                        <span>{getVoteCounts(meme.id).upvotes}</span>
                                                     </button>
                                                     <button
-                                                        onClick={() =>
-                                                            handleVote(
-                                                                meme.id,
-                                                                "down"
-                                                            )
-                                                        }
+                                                        onClick={() => handleVote(meme.id, "down")}
                                                         className={`flex items-center space-x-1 px-3 py-1 rounded-full text-sm transition-all duration-200 ${
-                                                            hasUserVoted(
-                                                                meme.id,
-                                                                "down"
-                                                            )
+                                                            userVotes[meme.id] === "down"
                                                                 ? "bg-red-500/50 cursor-not-allowed"
                                                                 : "bg-red-500 hover:bg-red-600"
                                                         }`}
-                                                        disabled={hasUserVoted(
-                                                            meme.id,
-                                                            "down"
-                                                        )}
+                                                        disabled={userVotes[meme.id] === "down"}
                                                     >
                                                         <span>↓</span>
-                                                        <span>
-                                                            {
-                                                                getVoteCounts(
-                                                                    meme.id
-                                                                ).downvotes
-                                                            }
-                                                        </span>
+                                                        <span>{getVoteCounts(meme.id).downvotes}</span>
                                                     </button>
                                                 </>
                                             ) : (
