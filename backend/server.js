@@ -10,7 +10,7 @@ const io = initializeSocket(server);
 
 // Middleware
 app.use(cors({
-    origin: ["https://meme-hustle-1.onrender.com"],
+    origin: ["https://meme-hustle-1.onrender.com", "https://meme-hustle-x9w1.onrender.com"],
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"]
