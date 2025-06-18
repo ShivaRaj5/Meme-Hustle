@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import BidInput from "./BidInput";
 import { useAuth } from "../context/AuthContext";
@@ -9,6 +9,7 @@ import noMemeImage from "../assets/nomemeimage.jpeg";
 
 const MyMemes = () => {
     const { user } = useAuth();
+    const userRef = useRef(user);
     const [memes, setMemes] = useState([]);
     const [bids, setBids] = useState({});
     const [votes, setVotes] = useState({});
@@ -21,9 +22,16 @@ const MyMemes = () => {
     const [tagInput, setTagInput] = useState("");
     const [loading, setLoading] = useState(true);
 
+    // Update ref when user changes
+    useEffect(() => {
+        userRef.current = user;
+    }, [user]);
+
     useEffect(() => {
         loadMyMemes();
-        
+    }, [user]);
+
+    useEffect(() => {
         // Set up Socket.IO listeners
         setupSocketListeners();
 
@@ -31,13 +39,21 @@ const MyMemes = () => {
         return () => {
             socketService.removeAllListeners();
         };
-    }, [user]);
+    }, []); // Socket.IO setup only runs once
 
     const setupSocketListeners = () => {
         // Listen for new memes (only if they belong to current user)
         socketService.onMemeCreated(({ meme }) => {
-            if (meme.user_id === user?.id) {
-                setMemes(prevMemes => [meme, ...prevMemes]);
+            const currentUser = userRef.current;
+            if (meme.user_id === currentUser?.id) {
+                setMemes(prevMemes => {
+                    // Check if meme already exists to prevent duplication
+                    const exists = prevMemes.some(m => m.id === meme.id);
+                    if (!exists) {
+                        return [meme, ...prevMemes];
+                    }
+                    return prevMemes;
+                });
                 if (meme.caption) {
                     setCaptions(prev => ({ ...prev, [meme.id]: meme.caption }));
                 }
@@ -49,7 +65,8 @@ const MyMemes = () => {
 
         // Listen for meme updates (only if they belong to current user)
         socketService.onMemeUpdated(({ meme }) => {
-            if (meme.user_id === user?.id) {
+            const currentUser = userRef.current;
+            if (meme.user_id === currentUser?.id) {
                 setMemes(prevMemes => 
                     prevMemes.map(m => m.id === meme.id ? meme : m)
                 );
@@ -186,17 +203,27 @@ const MyMemes = () => {
 
             toast.success("Meme created successfully!");
             
-            // Add new meme to the list
-            setMemes(prevMemes => [meme, ...prevMemes]);
+            // Add meme to state as fallback after a small delay (in case Socket.IO event is delayed)
+            setTimeout(() => {
+                setMemes(prevMemes => {
+                    // Check if meme already exists to prevent duplication
+                    const exists = prevMemes.some(m => m.id === meme.id);
+                    if (!exists) {
+                        console.log('Adding meme via fallback (Socket.IO event may not have arrived)');
+                        return [meme, ...prevMemes];
+                    }
+                    return prevMemes;
+                });
+                
+                // Add caption and vibe as fallback
+                if (meme.caption) {
+                    setCaptions(prev => ({ ...prev, [meme.id]: meme.caption }));
+                }
+                if (meme.vibe) {
+                    setVibes(prev => ({ ...prev, [meme.id]: meme.vibe }));
+                }
+            }, 500); // 500ms delay
             
-            // Add caption and vibe
-            if (meme.caption) {
-                setCaptions(prev => ({ ...prev, [meme.id]: meme.caption }));
-            }
-            if (meme.vibe) {
-                setVibes(prev => ({ ...prev, [meme.id]: meme.vibe }));
-            }
-
             // Reset form
             setTitle("");
             setImageUrl("");

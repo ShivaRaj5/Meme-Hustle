@@ -54,36 +54,43 @@ class SocketService {
     // Listen for real-time events
     onMemeCreated(callback) {
         const socket = this.getSocket();
+        socket.off('meme_created');
         socket.on('meme_created', callback);
     }
 
     onMemeUpdated(callback) {
         const socket = this.getSocket();
+        socket.off('meme_updated');
         socket.on('meme_updated', callback);
     }
 
     onMemeDeleted(callback) {
         const socket = this.getSocket();
+        socket.off('meme_deleted');
         socket.on('meme_deleted', callback);
     }
 
     onBidPlaced(callback) {
         const socket = this.getSocket();
+        socket.off('bid_placed');
         socket.on('bid_placed', callback);
     }
 
     onBidCancelled(callback) {
         const socket = this.getSocket();
+        socket.off('bid_cancelled');
         socket.on('bid_cancelled', callback);
     }
 
     onVoteUpdated(callback) {
         const socket = this.getSocket();
+        socket.off('vote_updated');
         socket.on('vote_updated', callback);
     }
 
     onCreditsUpdated(callback) {
         const socket = this.getSocket();
+        socket.off('credits_updated');
         socket.on('credits_updated', callback);
     }
 

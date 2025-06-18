@@ -43,7 +43,7 @@ const MemeHub = () => {
         return () => {
             socketService.removeAllListeners();
         };
-    }, [user]);
+    }, []);
 
     const setupSocketListeners = () => {
         // Listen for new memes
