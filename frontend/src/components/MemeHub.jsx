@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import BidInput from "./BidInput";
 import noMemeImage from "../assets/nomemeimage.jpeg";
 import { toast } from "react-toastify";
@@ -9,6 +9,7 @@ import socketService from "../services/socket";
 
 const MemeHub = () => {
     const { user, refreshUser } = useAuth();
+    const navigate = useNavigate();
     const [memes, setMemes] = useState([]);
     const [bids, setBids] = useState({});
     const [votes, setVotes] = useState({});
@@ -26,6 +27,13 @@ const MemeHub = () => {
     useEffect(() => {
         setIsLoggedIn(!!user);
     }, [user]);
+
+    // Load user votes when user state changes
+    useEffect(() => {
+        if (user && memes.length > 0) {
+            loadUserVotes(memes);
+        }
+    }, [user, memes]);
 
     // Fake terminal typing effect
     useEffect(() => {
@@ -152,6 +160,7 @@ const MemeHub = () => {
             
             // Load bids and votes for each meme
             await loadBidsAndVotes(memes);
+            await loadUserVotes(memes);
         } catch (error) {
             console.error("Failed to load memes:", error);
             toast.error("Failed to load memes");
@@ -164,7 +173,6 @@ const MemeHub = () => {
         try {
             const bidsData = {};
             const votesData = {};
-            const userVotesData = {};
             
             for (const meme of memesList) {
                 // Load bids
@@ -184,24 +192,34 @@ const MemeHub = () => {
                     console.error(`Failed to load votes for meme ${meme.id}:`, error);
                     votesData[meme.id] = { upvotes: 0, downvotes: 0 };
                 }
-                
-                // Load user vote (only if logged in)
-                if (isLoggedIn) {
-                    try {
-                        const { voteType } = await votesAPI.getUserVote(meme.id);
-                        userVotesData[meme.id] = voteType;
-                    } catch (error) {
-                        console.error(`Failed to load user vote for meme ${meme.id}:`, error);
-                        userVotesData[meme.id] = null;
-                    }
-                }
             }
             
             setBids(bidsData);
             setVotes(votesData);
-            setUserVotes(userVotesData);
         } catch (error) {
             console.error("Failed to load bids and votes:", error);
+        }
+    };
+
+    const loadUserVotes = async (memesList) => {
+        if (!user) return;
+        
+        try {
+            const userVotesData = {};
+            
+            for (const meme of memesList) {
+                try {
+                    const { voteType } = await votesAPI.getUserVote(meme.id);
+                    userVotesData[meme.id] = voteType;
+                } catch (error) {
+                    console.error(`Failed to load user vote for meme ${meme.id}:`, error);
+                    userVotesData[meme.id] = null;
+                }
+            }
+            
+            setUserVotes(userVotesData);
+        } catch (error) {
+            console.error("Failed to load user votes:", error);
         }
     };
 
@@ -374,6 +392,14 @@ const MemeHub = () => {
         e.target.src = noMemeImage;
     };
 
+    const handleCreateMeme = () => {
+        if (isLoggedIn) {
+            navigate('/my-memes');
+        } else {
+            navigate('/login');
+        }
+    };
+
     if (loading) {
         return (
             <div className="w-full bg-gray-900 text-white flex items-center justify-center min-h-screen">
@@ -392,12 +418,12 @@ const MemeHub = () => {
                     <div className="text-center py-12 bg-gray-800 rounded-lg">
                         <h2 className="text-2xl font-bold text-pink-500 mb-4">No Memes Yet!</h2>
                         <p className="text-gray-300 mb-6">Be the first to create and share your memes with the community.</p>
-                        <Link
-                            to="/login"
+                        <button
+                            onClick={handleCreateMeme}
                             className="inline-block px-6 py-3 bg-pink-500 hover:bg-pink-600 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 focus:ring-offset-gray-800 cursor-pointer"
                         >
                             Create Your First Meme
-                        </Link>
+                        </button>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
