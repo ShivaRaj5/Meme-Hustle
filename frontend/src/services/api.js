@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://meme-hustle-x9w1.onrender.com/api';
 
 // Helper function to get auth token
 const getAuthToken = () => {
