@@ -1,5 +1,5 @@
 const express = require('express');
-const { supabase } = require('../server');
+const supabase = require('../config/supabase');
 
 const router = express.Router();
 
@@ -12,7 +12,7 @@ router.get('/trending', async (req, res) => {
             .from('memes')
             .select(`
                 *,
-                users!memes_user_id_fkey(name as user_name)
+                users(name)
             `)
             .order('upvotes', { ascending: false })
             .limit(parseInt(limit));
@@ -22,7 +22,13 @@ router.get('/trending', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch trending memes' });
         }
 
-        res.json({ memes });
+        // Transform the data to flatten the user name
+        const transformedMemes = memes.map(meme => ({
+            ...meme,
+            user_name: meme.users?.name || 'Anonymous'
+        }));
+
+        res.json({ memes: transformedMemes });
     } catch (error) {
         console.error('Get trending memes error:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -39,7 +45,7 @@ router.get('/most-bid', async (req, res) => {
             .from('memes')
             .select(`
                 *,
-                users!memes_user_id_fkey(name as user_name),
+                users(name),
                 bids(count)
             `)
             .order('bids.count', { ascending: false })
@@ -50,7 +56,13 @@ router.get('/most-bid', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch most bid memes' });
         }
 
-        res.json({ memes });
+        // Transform the data to flatten the user name
+        const transformedMemes = memes.map(meme => ({
+            ...meme,
+            user_name: meme.users?.name || 'Anonymous'
+        }));
+
+        res.json({ memes: transformedMemes });
     } catch (error) {
         console.error('Get most bid memes error:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -67,7 +79,7 @@ router.get('/highest-bids', async (req, res) => {
             .from('memes')
             .select(`
                 *,
-                users!memes_user_id_fkey(name as user_name),
+                users(name),
                 bids!inner(amount)
             `)
             .order('bids.amount', { ascending: false })
@@ -78,7 +90,13 @@ router.get('/highest-bids', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch highest bid memes' });
         }
 
-        res.json({ memes });
+        // Transform the data to flatten the user name
+        const transformedMemes = memes.map(meme => ({
+            ...meme,
+            user_name: meme.users?.name || 'Anonymous'
+        }));
+
+        res.json({ memes: transformedMemes });
     } catch (error) {
         console.error('Get highest bid memes error:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -94,7 +112,7 @@ router.get('/recent', async (req, res) => {
             .from('memes')
             .select(`
                 *,
-                users!memes_user_id_fkey(name as user_name)
+                users(name)
             `)
             .order('created_at', { ascending: false })
             .limit(parseInt(limit));
@@ -104,7 +122,13 @@ router.get('/recent', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch recent memes' });
         }
 
-        res.json({ memes });
+        // Transform the data to flatten the user name
+        const transformedMemes = memes.map(meme => ({
+            ...meme,
+            user_name: meme.users?.name || 'Anonymous'
+        }));
+
+        res.json({ memes: transformedMemes });
     } catch (error) {
         console.error('Get recent memes error:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -121,7 +145,7 @@ router.get('/overall', async (req, res) => {
             .from('memes')
             .select(`
                 *,
-                users!memes_user_id_fkey(name as user_name),
+                users(name),
                 bids(count, amount)
             `)
             .order('upvotes', { ascending: false })
@@ -132,8 +156,14 @@ router.get('/overall', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch overall leaderboard' });
         }
 
+        // Transform the data to flatten the user name
+        const transformedMemes = memes.map(meme => ({
+            ...meme,
+            user_name: meme.users?.name || 'Anonymous'
+        }));
+
         // Calculate score for each meme (upvotes + bid count)
-        const memesWithScore = memes.map(meme => ({
+        const memesWithScore = transformedMemes.map(meme => ({
             ...meme,
             score: (meme.upvotes || 0) + (meme.bids?.length || 0)
         }));

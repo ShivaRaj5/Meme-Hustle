@@ -1,6 +1,8 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const { supabase, genAI, io } = require('../server');
+const supabase = require('../config/supabase');
+const genAI = require('../config/ai');
+const { io } = require('../server');
 
 const router = express.Router();
 
@@ -83,7 +85,7 @@ router.get('/', async (req, res) => {
             .from('memes')
             .select(`
                 *,
-                users!memes_user_id_fkey(name as user_name)
+                users(name)
             `)
             .order('created_at', { ascending: false });
 
@@ -92,7 +94,13 @@ router.get('/', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch memes' });
         }
 
-        res.json({ memes });
+        // Transform the data to flatten the user name
+        const transformedMemes = memes.map(meme => ({
+            ...meme,
+            user_name: meme.users?.name || 'Anonymous'
+        }));
+
+        res.json({ memes: transformedMemes });
     } catch (error) {
         console.error('Get memes error:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -108,7 +116,7 @@ router.get('/:id', async (req, res) => {
             .from('memes')
             .select(`
                 *,
-                users!memes_user_id_fkey(name as user_name)
+                users(name)
             `)
             .eq('id', id)
             .single();
@@ -117,7 +125,13 @@ router.get('/:id', async (req, res) => {
             return res.status(404).json({ error: 'Meme not found' });
         }
 
-        res.json({ meme });
+        // Transform the data to flatten the user name
+        const transformedMeme = {
+            ...meme,
+            user_name: meme.users?.name || 'Anonymous'
+        };
+
+        res.json({ meme: transformedMeme });
     } catch (error) {
         console.error('Get meme error:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -158,7 +172,7 @@ router.post('/', authenticateToken, async (req, res) => {
             ])
             .select(`
                 *,
-                users!memes_user_id_fkey(name as user_name)
+                users(name)
             `)
             .single();
 
@@ -167,12 +181,18 @@ router.post('/', authenticateToken, async (req, res) => {
             return res.status(500).json({ error: 'Failed to create meme' });
         }
 
+        // Transform the data to flatten the user name
+        const transformedMeme = {
+            ...newMeme,
+            user_name: newMeme.users?.name || 'Anonymous'
+        };
+
         // Emit real-time update
-        io.emit('meme_created', { meme: newMeme });
+        io.emit('meme_created', { meme: transformedMeme });
 
         res.status(201).json({ 
             message: 'Meme created successfully',
-            meme: newMeme 
+            meme: transformedMeme 
         });
     } catch (error) {
         console.error('Create meme error:', error);
@@ -219,7 +239,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
             .eq('id', id)
             .select(`
                 *,
-                users!memes_user_id_fkey(name as user_name)
+                users(name)
             `)
             .single();
 
@@ -228,12 +248,18 @@ router.put('/:id', authenticateToken, async (req, res) => {
             return res.status(500).json({ error: 'Failed to update meme' });
         }
 
+        // Transform the data to flatten the user name
+        const transformedMeme = {
+            ...updatedMeme,
+            user_name: updatedMeme.users?.name || 'Anonymous'
+        };
+
         // Emit real-time update
-        io.emit('meme_updated', { meme: updatedMeme });
+        io.emit('meme_updated', { meme: transformedMeme });
 
         res.json({ 
             message: 'Meme updated successfully',
-            meme: updatedMeme 
+            meme: transformedMeme 
         });
     } catch (error) {
         console.error('Update meme error:', error);
@@ -305,7 +331,7 @@ router.post('/:id/caption', authenticateToken, async (req, res) => {
             .eq('id', id)
             .select(`
                 *,
-                users!memes_user_id_fkey(name as user_name)
+                users(name)
             `)
             .single();
 
@@ -314,12 +340,18 @@ router.post('/:id/caption', authenticateToken, async (req, res) => {
             return res.status(500).json({ error: 'Failed to update caption' });
         }
 
+        // Transform the data to flatten the user name
+        const transformedMeme = {
+            ...updatedMeme,
+            user_name: updatedMeme.users?.name || 'Anonymous'
+        };
+
         // Emit real-time update
-        io.emit('meme_caption_updated', { meme: updatedMeme });
+        io.emit('meme_caption_updated', { meme: transformedMeme });
 
         res.json({ 
             message: 'Caption generated successfully',
-            meme: updatedMeme 
+            meme: transformedMeme 
         });
     } catch (error) {
         console.error('Generate caption error:', error);

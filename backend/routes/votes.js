@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const { supabase, io } = require('../server');
+const supabase = require('../config/supabase');
+const { io } = require('../server');
 
 const router = express.Router();
 
@@ -157,7 +158,7 @@ router.post('/meme/:memeId', authenticateToken, async (req, res) => {
             .eq('id', memeId)
             .select(`
                 *,
-                users!memes_user_id_fkey(name as user_name)
+                users(name)
             `)
             .single();
 
@@ -166,17 +167,23 @@ router.post('/meme/:memeId', authenticateToken, async (req, res) => {
             return res.status(500).json({ error: 'Failed to update meme votes' });
         }
 
+        // Transform the data to flatten the user name
+        const transformedMeme = {
+            ...updatedMeme,
+            user_name: updatedMeme.users?.name || 'Anonymous'
+        };
+
         // Emit real-time updates
         io.emit('vote_updated', {
             memeId,
-            meme: updatedMeme,
+            meme: transformedMeme,
             voteType: type,
             action: existingVote ? (existingVote.vote_type === type ? 'removed' : 'changed') : 'added'
         });
 
         res.json({
             message: 'Vote processed successfully',
-            meme: updatedMeme,
+            meme: transformedMeme,
             voteType: type,
             action: existingVote ? (existingVote.vote_type === type ? 'removed' : 'changed') : 'added'
         });
@@ -220,7 +227,7 @@ router.get('/user', authenticateToken, async (req, res) => {
             .from('votes')
             .select(`
                 *,
-                memes!votes_meme_id_fkey(
+                memes(
                     id,
                     title,
                     image_url,
@@ -236,7 +243,13 @@ router.get('/user', authenticateToken, async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch user votes' });
         }
 
-        res.json({ votes });
+        // Transform the data to flatten the meme data
+        const transformedVotes = votes.map(vote => ({
+            ...vote,
+            meme: vote.memes
+        }));
+
+        res.json({ votes: transformedVotes });
     } catch (error) {
         console.error('Get user votes error:', error);
         res.status(500).json({ error: 'Internal server error' });

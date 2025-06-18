@@ -2,30 +2,26 @@ const express = require("express");
 const cors = require("cors");
 const http = require("http");
 const socketIo = require("socket.io");
-const { createClient } = require("@supabase/supabase-js");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
 require("dotenv").config();
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
     cors: {
-        origin: "http://localhost:3000",
+        origin: ["http://localhost:3000", "http://localhost:3001"],
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+        credentials: true
     },
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: ["http://localhost:3000", "http://localhost:3001"],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+}));
 app.use(express.json());
-
-// Supabase setup
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Gemini AI setup
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Socket.IO connection handling
 io.on("connection", (socket) => {
@@ -54,4 +50,4 @@ server.listen(PORT, () => {
     console.log(`📡 Socket.IO server ready`);
 });
 
-module.exports = { io, supabase, genAI };
+module.exports = { io };

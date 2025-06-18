@@ -4,9 +4,11 @@ import BidInput from "./BidInput";
 import noMemeImage from "../assets/nomemeimage.jpeg";
 import { toast } from "react-toastify";
 import { useAuth } from "../context/AuthContext";
+import { memesAPI, bidsAPI, votesAPI } from "../services/api";
+import socketService from "../services/socket";
 
 const MemeHub = () => {
-    const { user, login } = useAuth();
+    const { user, refreshUser } = useAuth();
     const [memes, setMemes] = useState([]);
     const [bids, setBids] = useState({});
     const [votes, setVotes] = useState({});
@@ -14,18 +16,10 @@ const MemeHub = () => {
     const [vibes, setVibes] = useState({});
     const [typingText, setTypingText] = useState("");
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const storedMemes = localStorage.getItem("memes");
-        const storedBids = localStorage.getItem("bids");
-        const storedVotes = localStorage.getItem("votes");
-        const storedCaptions = localStorage.getItem("captions");
-        const storedVibes = localStorage.getItem("vibes");
-        if (storedMemes) setMemes(JSON.parse(storedMemes));
-        if (storedBids) setBids(JSON.parse(storedBids));
-        if (storedVotes) setVotes(JSON.parse(storedVotes));
-        if (storedCaptions) setCaptions(JSON.parse(storedCaptions));
-        if (storedVibes) setVibes(JSON.parse(storedVibes));
+        loadMemes();
         if (user) {
             setIsLoggedIn(true);
         }
@@ -41,9 +35,158 @@ const MemeHub = () => {
             }
         };
         typeWriter();
+
+        // Set up Socket.IO listeners
+        setupSocketListeners();
+
+        // Cleanup on unmount
+        return () => {
+            socketService.removeAllListeners();
+        };
     }, [user]);
 
-    const handleBid = (memeId, amount) => {
+    const setupSocketListeners = () => {
+        // Listen for new memes
+        socketService.onMemeCreated(({ meme }) => {
+            setMemes(prevMemes => [meme, ...prevMemes]);
+            if (meme.caption) {
+                setCaptions(prev => ({ ...prev, [meme.id]: meme.caption }));
+            }
+            if (meme.vibe) {
+                setVibes(prev => ({ ...prev, [meme.id]: meme.vibe }));
+            }
+            toast.success(`New meme created: ${meme.title}`);
+        });
+
+        // Listen for meme updates
+        socketService.onMemeUpdated(({ meme }) => {
+            setMemes(prevMemes => 
+                prevMemes.map(m => m.id === meme.id ? meme : m)
+            );
+            if (meme.caption) {
+                setCaptions(prev => ({ ...prev, [meme.id]: meme.caption }));
+            }
+            if (meme.vibe) {
+                setVibes(prev => ({ ...prev, [meme.id]: meme.vibe }));
+            }
+        });
+
+        // Listen for meme deletions
+        socketService.onMemeDeleted(({ memeId }) => {
+            setMemes(prevMemes => prevMemes.filter(m => m.id !== memeId));
+            setCaptions(prev => {
+                const newCaptions = { ...prev };
+                delete newCaptions[memeId];
+                return newCaptions;
+            });
+            setVibes(prev => {
+                const newVibes = { ...prev };
+                delete newVibes[memeId];
+                return newVibes;
+            });
+        });
+
+        // Listen for new bids
+        socketService.onBidPlaced(({ memeId, bid, userCredits }) => {
+            setBids(prevBids => ({
+                ...prevBids,
+                [memeId]: [...(prevBids[memeId] || []).filter(b => b.user_id !== bid.user_id), bid]
+            }));
+            
+            // Update user credits if it's the current user
+            if (user && bid.user_id === user.id) {
+                refreshUser();
+            }
+        });
+
+        // Listen for bid cancellations
+        socketService.onBidCancelled(({ memeId, bidId, userCredits }) => {
+            setBids(prevBids => ({
+                ...prevBids,
+                [memeId]: (prevBids[memeId] || []).filter(b => b.id !== bidId)
+            }));
+            
+            // Update user credits if it's the current user
+            if (user && userCredits !== undefined) {
+                refreshUser();
+            }
+        });
+
+        // Listen for vote updates
+        socketService.onVoteUpdated(({ memeId, meme }) => {
+            setVotes(prevVotes => ({
+                ...prevVotes,
+                [memeId]: { upvotes: meme.upvotes, downvotes: meme.downvotes }
+            }));
+        });
+
+        // Listen for credit updates
+        socketService.onCreditsUpdated(({ userId, credits }) => {
+            if (user && userId === user.id) {
+                refreshUser();
+            }
+        });
+    };
+
+    const loadMemes = async () => {
+        try {
+            setLoading(true);
+            const { memes } = await memesAPI.getAll();
+            setMemes(memes);
+            
+            // Load captions and vibes from memes
+            const captionsData = {};
+            const vibesData = {};
+            memes.forEach(meme => {
+                if (meme.caption) captionsData[meme.id] = meme.caption;
+                if (meme.vibe) vibesData[meme.id] = meme.vibe;
+            });
+            setCaptions(captionsData);
+            setVibes(vibesData);
+            
+            // Load bids and votes for each meme
+            await loadBidsAndVotes(memes);
+        } catch (error) {
+            console.error("Failed to load memes:", error);
+            toast.error("Failed to load memes");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadBidsAndVotes = async (memesList) => {
+        try {
+            const bidsData = {};
+            const votesData = {};
+            
+            for (const meme of memesList) {
+                // Load bids
+                try {
+                    const { bids } = await bidsAPI.getByMeme(meme.id);
+                    bidsData[meme.id] = bids;
+                } catch (error) {
+                    console.error(`Failed to load bids for meme ${meme.id}:`, error);
+                    bidsData[meme.id] = [];
+                }
+                
+                // Load votes
+                try {
+                    const { upvotes, downvotes } = await votesAPI.getByMeme(meme.id);
+                    votesData[meme.id] = { upvotes: upvotes, downvotes: downvotes };
+                } catch (error) {
+                    console.error(`Failed to load votes for meme ${meme.id}:`, error);
+                    votesData[meme.id] = { upvotes: 0, downvotes: 0 };
+                }
+            }
+            
+            setBids(bidsData);
+            setVotes(votesData);
+        } catch (error) {
+            console.error("Failed to load bids and votes:", error);
+        }
+    };
+
+    const handleBid = async (memeId, amount) => {
         if (!isLoggedIn) return;
 
         // Check if user has enough credits
@@ -85,57 +228,35 @@ const MemeHub = () => {
             return;
         }
 
-        const newBid = {
-            userId: user.id,
-            userName: user.name,
-            amount: amount,
-            timestamp: new Date().toISOString(),
-        };
-
-        // Check if user already has a bid
-        const existingBidIndex = currentBids.findIndex(
-            (bid) => bid.userId === user.id
-        );
-
-        let updatedBids;
-        if (existingBidIndex !== -1) {
-            // Update existing bid
-            const updatedBidsArray = [...currentBids];
-            updatedBidsArray[existingBidIndex] = newBid;
-            updatedBids = {
+        try {
+            const { bid, remainingCredits } = await bidsAPI.place(memeId, amount);
+            
+            // Update local state
+            const updatedBids = {
                 ...bids,
-                [memeId]: updatedBidsArray,
+                [memeId]: [...(bids[memeId] || []).filter(b => b.user_id !== user.id), bid]
             };
-        } else {
-            // Add new bid
-            updatedBids = {
-                ...bids,
-                [memeId]: [...currentBids, newBid],
-            };
-        }
+            setBids(updatedBids);
+            
+            // Refresh user credits
+            await refreshUser();
 
-        // Update user's credits
-        const updatedUser = {
-            ...user,
-            credits: user.credits - amount,
-        };
-        login(updatedUser); // Update user in AuthContext
-        localStorage.setItem("user", JSON.stringify(updatedUser));
-
-        // Update users list in localStorage
-        const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-        const updatedUsers = storedUsers.map((u) =>
-            u.id === user.id ? updatedUser : u
-        );
-        localStorage.setItem("users", JSON.stringify(updatedUsers));
-
-        setBids(updatedBids);
-        localStorage.setItem("bids", JSON.stringify(updatedBids));
-
-        // Show bid confirmation
-        toast.success(
-            `${user.name} bid ${amount} credits! Remaining credits: ${updatedUser.credits}`,
-            {
+            // Show bid confirmation
+            toast.success(
+                `${user.name} bid ${amount} credits! Remaining credits: ${remainingCredits}`,
+                {
+                    position: "top-right",
+                    autoClose: 3000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    pauseOnHover: true,
+                    draggable: true,
+                    progress: undefined,
+                    theme: "dark",
+                }
+            );
+        } catch (error) {
+            toast.error(error.message || "Failed to place bid", {
                 position: "top-right",
                 autoClose: 3000,
                 hideProgressBar: false,
@@ -144,8 +265,8 @@ const MemeHub = () => {
                 draggable: true,
                 progress: undefined,
                 theme: "dark",
-            }
-        );
+            });
+        }
     };
 
     const getHighestBid = (memeId) => {
@@ -161,77 +282,74 @@ const MemeHub = () => {
 
         return {
             amount: highestBid.amount,
-            bidder: highestBid.userName,
+            bidder: highestBid.user_name,
         };
     };
 
-    const handleVote = (memeId, type) => {
+    const handleVote = async (memeId, type) => {
         if (!isLoggedIn) return;
 
-        const currentVotes = votes[memeId] || { upvotes: [], downvotes: [] };
-        const userId = user.id;
-
-        let newVotes = { ...currentVotes };
-
-        if (type === "up") {
-            // If user has already upvoted, remove the upvote
-            if (currentVotes.upvotes.includes(userId)) {
-                newVotes.upvotes = currentVotes.upvotes.filter(
-                    (id) => id !== userId
-                );
-            } else {
-                // Add upvote and remove from downvotes if exists
-                newVotes.upvotes = [...currentVotes.upvotes, userId];
-                newVotes.downvotes = currentVotes.downvotes.filter(
-                    (id) => id !== userId
-                );
-            }
-        } else {
-            // If user has already downvoted, remove the downvote
-            if (currentVotes.downvotes.includes(userId)) {
-                newVotes.downvotes = currentVotes.downvotes.filter(
-                    (id) => id !== userId
-                );
-            } else {
-                // Add downvote and remove from upvotes if exists
-                newVotes.downvotes = [...currentVotes.downvotes, userId];
-                newVotes.upvotes = currentVotes.upvotes.filter(
-                    (id) => id !== userId
-                );
-            }
+        try {
+            const { meme: updatedMeme } = await votesAPI.vote(memeId, type);
+            
+            // Update local votes state
+            const updatedVotes = {
+                ...votes,
+                [memeId]: { upvotes: updatedMeme.upvotes, downvotes: updatedMeme.downvotes }
+            };
+            setVotes(updatedVotes);
+        } catch (error) {
+            toast.error(error.message || "Failed to vote", {
+                position: "top-right",
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                progress: undefined,
+                theme: "dark",
+            });
         }
-
-        const updatedVotes = { ...votes, [memeId]: newVotes };
-        setVotes(updatedVotes);
-        localStorage.setItem("votes", JSON.stringify(updatedVotes));
     };
 
     const getVoteCounts = (memeId) => {
-        const memeVotes = votes[memeId] || { upvotes: [], downvotes: [] };
+        const memeVotes = votes[memeId] || { upvotes: 0, downvotes: 0 };
         return {
-            upvotes: memeVotes.upvotes.length,
-            downvotes: memeVotes.downvotes.length,
+            upvotes: memeVotes.upvotes,
+            downvotes: memeVotes.downvotes,
         };
     };
 
     const hasUserVoted = (memeId, type) => {
         if (!isLoggedIn) return false;
-        const memeVotes = votes[memeId] || { upvotes: [], downvotes: [] };
-        return type === "up"
-            ? memeVotes.upvotes.includes(user.id)
-            : memeVotes.downvotes.includes(user.id);
+        // This would need to be implemented with a separate API call to get user's vote
+        // For now, we'll return false to avoid complexity
+        return false;
     };
 
-    const handleDelete = (memeId) => {
-        const updatedMemes = memes.filter((meme) => meme.id !== memeId);
-        setMemes(updatedMemes);
-        localStorage.setItem("memes", JSON.stringify(updatedMemes));
+    const handleDelete = async (memeId) => {
+        try {
+            await memesAPI.delete(memeId);
+            const updatedMemes = memes.filter((meme) => meme.id !== memeId);
+            setMemes(updatedMemes);
+            toast.success("Meme deleted successfully!");
+        } catch (error) {
+            toast.error(error.message || "Failed to delete meme");
+        }
     };
 
     const handleImageError = (e) => {
         e.target.onerror = null; // Prevent infinite loop
         e.target.src = noMemeImage;
     };
+
+    if (loading) {
+        return (
+            <div className="w-full bg-gray-900 text-white flex items-center justify-center min-h-screen">
+                <div className="text-xl">Loading memes...</div>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full bg-gray-900 text-white">
@@ -263,12 +381,12 @@ const MemeHub = () => {
                                             {meme.title}
                                         </h2>
                                         <span className="text-sm text-gray-400">
-                                            Posted by {meme.userName || "Anonymous"}
+                                            Posted by {meme.user_name || "Anonymous"}
                                         </span>
                                     </div>
                                     <div className="relative aspect-video mb-4">
                                         <img
-                                            src={meme.imageUrl}
+                                            src={meme.image_url}
                                             alt={meme.title}
                                             onError={handleImageError}
                                             className="w-full h-full object-cover rounded-lg"
@@ -276,7 +394,7 @@ const MemeHub = () => {
                                     </div>
                                     <div className="space-y-3">
                                         <p className="text-sm text-gray-300">
-                                            Tags: {meme.tags.join(", ")}
+                                            Tags: {meme.tags?.join(", ") || "No tags"}
                                         </p>
                                         <p className="text-sm italic text-gray-400">
                                             {captions[meme.id]}
@@ -407,7 +525,7 @@ const MemeHub = () => {
                                             )}
                                         </div>
                                     </div>
-                                    {isLoggedIn && meme.userId === user?.id && (
+                                    {isLoggedIn && meme.user_id === user?.id && (
                                         <button
                                             onClick={() => handleDelete(meme.id)}
                                             className="mt-4 w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 transition-colors duration-200"

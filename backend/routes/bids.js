@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const { supabase, io } = require('../server');
+const supabase = require('../config/supabase');
+const { io } = require('../server');
 
 const router = express.Router();
 
@@ -29,7 +30,7 @@ router.get('/meme/:memeId', async (req, res) => {
             .from('bids')
             .select(`
                 *,
-                users!bids_user_id_fkey(name as user_name)
+                users(name)
             `)
             .eq('meme_id', memeId)
             .order('amount', { ascending: false });
@@ -39,7 +40,13 @@ router.get('/meme/:memeId', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch bids' });
         }
 
-        res.json({ bids });
+        // Transform the data to flatten the user name
+        const transformedBids = bids.map(bid => ({
+            ...bid,
+            user_name: bid.users?.name || 'Anonymous'
+        }));
+
+        res.json({ bids: transformedBids });
     } catch (error) {
         console.error('Get bids error:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -55,7 +62,7 @@ router.get('/meme/:memeId/highest', async (req, res) => {
             .from('bids')
             .select(`
                 *,
-                users!bids_user_id_fkey(name as user_name)
+                users(name)
             `)
             .eq('meme_id', memeId)
             .order('amount', { ascending: false })
@@ -67,7 +74,13 @@ router.get('/meme/:memeId/highest', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch highest bid' });
         }
 
-        res.json({ highestBid: highestBid || null });
+        // Transform the data to flatten the user name
+        const transformedBid = highestBid ? {
+            ...highestBid,
+            user_name: highestBid.users?.name || 'Anonymous'
+        } : null;
+
+        res.json({ highestBid: transformedBid });
     } catch (error) {
         console.error('Get highest bid error:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -136,7 +149,7 @@ router.post('/meme/:memeId', authenticateToken, async (req, res) => {
                 .eq('id', existingBid.id)
                 .select(`
                     *,
-                    users!bids_user_id_fkey(name as user_name)
+                    users(name)
                 `)
                 .single();
 
@@ -145,7 +158,11 @@ router.post('/meme/:memeId', authenticateToken, async (req, res) => {
                 return res.status(500).json({ error: 'Failed to update bid' });
             }
 
-            newBid = updatedBid;
+            // Transform the data to flatten the user name
+            newBid = {
+                ...updatedBid,
+                user_name: updatedBid.users?.name || 'Anonymous'
+            };
         } else {
             // Create new bid
             const { data: createdBid, error: createError } = await supabase
@@ -160,7 +177,7 @@ router.post('/meme/:memeId', authenticateToken, async (req, res) => {
                 ])
                 .select(`
                     *,
-                    users!bids_user_id_fkey(name as user_name)
+                    users(name)
                 `)
                 .single();
 
@@ -169,7 +186,11 @@ router.post('/meme/:memeId', authenticateToken, async (req, res) => {
                 return res.status(500).json({ error: 'Failed to create bid' });
             }
 
-            newBid = createdBid;
+            // Transform the data to flatten the user name
+            newBid = {
+                ...createdBid,
+                user_name: createdBid.users?.name || 'Anonymous'
+            };
         }
 
         // Update user's credits
@@ -216,7 +237,7 @@ router.get('/user', authenticateToken, async (req, res) => {
             .from('bids')
             .select(`
                 *,
-                memes!bids_meme_id_fkey(
+                memes(
                     id,
                     title,
                     image_url,
@@ -232,7 +253,13 @@ router.get('/user', authenticateToken, async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch user bids' });
         }
 
-        res.json({ bids });
+        // Transform the data to flatten the meme data
+        const transformedBids = bids.map(bid => ({
+            ...bid,
+            meme: bid.memes
+        }));
+
+        res.json({ bids: transformedBids });
     } catch (error) {
         console.error('Get user bids error:', error);
         res.status(500).json({ error: 'Internal server error' });

@@ -7,33 +7,31 @@ const Login = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
     const { login } = useAuth();
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        const users = JSON.parse(localStorage.getItem("users") || "[]");
-        const user = users.find(u => u.email === email && u.password === password);
-        if (user) {
-            const userData = {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                credits: user.credits
-            };
-            login(userData);
-            toast.success("Welcome back!", {
-                position: "top-right",
-                autoClose: 3000,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: true,
-                draggable: true,
-                progress: undefined,
-                theme: "dark",
-            });
-            navigate("/");
-        } else {
+        setIsLoading(true);
+
+        try {
+            const result = await login({ email, password });
+            if (result.success) {
+                toast.success("Welcome back!", {
+                    position: "top-right",
+                    autoClose: 3000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    pauseOnHover: true,
+                    draggable: true,
+                    progress: undefined,
+                    theme: "dark",
+                });
+                navigate("/");
+            }
+        } catch (error) {
+            console.error("Login error:", error);
             toast.error("Invalid email or password", {
                 position: "top-right",
                 autoClose: 3000,
@@ -44,6 +42,8 @@ const Login = () => {
                 progress: undefined,
                 theme: "dark",
             });
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -100,9 +100,10 @@ const Login = () => {
                     </div>
                     <button
                         type="submit"
-                        className="w-full py-3 px-4 bg-pink-500 hover:bg-pink-600 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+                        disabled={isLoading}
+                        className="w-full py-3 px-4 bg-pink-500 hover:bg-pink-600 disabled:bg-gray-600 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:cursor-not-allowed disabled:transform-none"
                     >
-                        Log In
+                        {isLoading ? "Logging in..." : "Log In"}
                     </button>
                 </form>
                 <p className="mt-4 text-center text-gray-400">
