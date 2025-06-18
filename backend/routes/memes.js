@@ -2,7 +2,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const supabase = require('../config/supabase');
 const genAI = require('../config/ai');
-const { io } = require('../server');
+const { getIO } = require('../config/socket');
 
 const router = express.Router();
 
@@ -188,7 +188,7 @@ router.post('/', authenticateToken, async (req, res) => {
         };
 
         // Emit real-time update
-        io.emit('meme_created', { meme: transformedMeme });
+        getIO().emit('meme_created', { meme: transformedMeme });
 
         res.status(201).json({ 
             message: 'Meme created successfully',
@@ -255,7 +255,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
         };
 
         // Emit real-time update
-        io.emit('meme_updated', { meme: transformedMeme });
+        getIO().emit('meme_updated', { meme: transformedMeme });
 
         res.json({ 
             message: 'Meme updated successfully',
@@ -295,7 +295,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
         }
 
         // Emit real-time update
-        io.emit('meme_deleted', { memeId: id });
+        getIO().emit('meme_deleted', { memeId: id });
 
         res.json({ message: 'Meme deleted successfully' });
     } catch (error) {
@@ -347,7 +347,7 @@ router.post('/:id/caption', authenticateToken, async (req, res) => {
         };
 
         // Emit real-time update
-        io.emit('meme_caption_updated', { meme: transformedMeme });
+        getIO().emit('meme_caption_updated', { meme: transformedMeme });
 
         res.json({ 
             message: 'Caption generated successfully',

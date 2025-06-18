@@ -1,18 +1,12 @@
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
-const socketIo = require("socket.io");
+const { initializeSocket } = require("./config/socket");
 require("dotenv").config();
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server, {
-    cors: {
-        origin: ["http://localhost:3000", "http://localhost:3001"],
-        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-        credentials: true
-    },
-});
+const io = initializeSocket(server);
 
 // Middleware
 app.use(cors({
@@ -22,15 +16,6 @@ app.use(cors({
     allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(express.json());
-
-// Socket.IO connection handling
-io.on("connection", (socket) => {
-    console.log("User connected:", socket.id);
-
-    socket.on("disconnect", () => {
-        console.log("User disconnected:", socket.id);
-    });
-});
 
 // Routes
 app.use("/api/auth", require("./routes/auth"));
@@ -49,5 +34,3 @@ server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📡 Socket.IO server ready`);
 });
-
-module.exports = { io };

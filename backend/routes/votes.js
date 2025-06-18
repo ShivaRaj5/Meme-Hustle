@@ -1,7 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const supabase = require('../config/supabase');
-const { io } = require('../server');
+const { getIO } = require('../config/socket');
 
 const router = express.Router();
 
@@ -174,7 +174,7 @@ router.post('/meme/:memeId', authenticateToken, async (req, res) => {
         };
 
         // Emit real-time updates
-        io.emit('vote_updated', {
+        getIO().emit('vote_updated', {
             memeId,
             meme: transformedMeme,
             voteType: type,

@@ -1,7 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const supabase = require('../config/supabase');
-const { io } = require('../server');
+const { getIO } = require('../config/socket');
 
 const router = express.Router();
 
@@ -206,13 +206,13 @@ router.post('/meme/:memeId', authenticateToken, async (req, res) => {
         }
 
         // Emit real-time updates
-        io.emit('bid_placed', {
+        getIO().emit('bid_placed', {
             memeId,
             bid: newBid,
             userCredits: newCredits
         });
 
-        io.emit('credits_updated', {
+        getIO().emit('credits_updated', {
             userId,
             credits: newCredits
         });
@@ -314,13 +314,13 @@ router.delete('/:bidId', authenticateToken, async (req, res) => {
         }
 
         // Emit real-time updates
-        io.emit('bid_cancelled', {
+        getIO().emit('bid_cancelled', {
             memeId: bid.meme_id,
             bidId,
             userCredits: newCredits
         });
 
-        io.emit('credits_updated', {
+        getIO().emit('credits_updated', {
             userId,
             credits: newCredits
         });
