@@ -479,7 +479,7 @@ const MemeHub = () => {
                                             <BidInput
                                                 onBid={handleBid}
                                                 memeId={meme.id}
-                                                userCredits={user.credits}
+                                                userCredits={user?.credits || 0}
                                             />
                                         ) : (
                                             <div className="text-yellow-500 text-sm">
